@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.9.3] - 2023-07-13
+
+### Changed
+
+- Migrate to flit for build
+
+### Fixed
+
+- Upgrade AA dependency regarding eveonline migration (`0017_alliance_and_corp_names_are_not_unique``)
+
 ## [1.9.2] - 2023-06-28
 
 ### Changed
