@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [1.10.0] - 2023-07-13
+## [1.9.3] - 2023-07-13
 
 ### Changed
 
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
-- Update AA dependency
+- Upgrade AA dependency regarding eveonline migration (`0017_alliance_and_corp_names_are_not_unique``)
 
 ## [1.9.2] - 2023-06-28
 
