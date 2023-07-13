@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.10.0] - 2023-07-13
+
+### Changed
+
+- Migrate to flit for build
+
+### Fixed
+
+- Update AA dependency
+
 ## [1.9.2] - 2023-06-28
 
 ### Changed
