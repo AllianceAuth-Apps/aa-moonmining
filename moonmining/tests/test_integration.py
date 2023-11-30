@@ -16,9 +16,10 @@ from app_utils.testing import (
     json_response_to_python,
 )
 
-from moonmining import tasks, views
+from moonmining import tasks
 from moonmining.models import Label, Moon, Owner, Refinery
 from moonmining.tests import helpers
+from moonmining.views import moons
 
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.factories import (
@@ -34,7 +35,7 @@ from .testdata.survey_data import fetch_survey_data
 MANAGERS_PATH = "moonmining.managers"
 MODELS_PATH = "moonmining.models"
 TASKS_PATH = "moonmining.tasks"
-VIEWS_PATH = "moonmining.views"
+VIEWS_PATH = "moonmining.views.views_all"
 
 
 class TestUI(WebTest):
@@ -250,7 +251,7 @@ class TestMoonsDataFdd(TestCase):
         self.client.force_login(user)
         # when
         path = (
-            f"/moonmining/moons_fdd_data/{views.MoonsCategory.ALL.value}"
+            f"/moonmining/moons_fdd_data/{moons.MoonsCategory.ALL.value}"
             "?columns=alliance_name,corporation_name,region_name,"
             "constellation_name,solar_system_name,rarity_class_str,label_name,"
             "has_refinery_str,has_extraction_str,invalid_column"
