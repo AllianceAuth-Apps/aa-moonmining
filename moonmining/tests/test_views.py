@@ -121,6 +121,7 @@ class TestMoonsData(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.factory = RequestFactory()
         load_eveuniverse()
         load_allianceauth()
         helpers.generate_market_prices()
@@ -142,9 +143,13 @@ class TestMoonsData(TestCase):
             permissions=["moonmining.basic_access", "moonmining.view_all_moons"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+        my_view = views.MoonListJson.as_view()
+
         # when
-        response = self.client.get(f"/moonmining/moons_data/{views.MoonsCategory.ALL}")
+        response = my_view(request, category=views.MoonsCategory.ALL)
+
         # then
         self.assertEqual(response.status_code, 200)
         data = self._response_to_dict(response)
@@ -161,9 +166,13 @@ class TestMoonsData(TestCase):
             permissions=["moonmining.basic_access", "moonmining.extractions_access"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+        my_view = views.MoonListJson.as_view()
+
         # when
-        response = self.client.get(f"/moonmining/moons_data/{views.MoonsCategory.OURS}")
+        response = my_view(request, category=views.MoonsCategory.OURS)
+
         # then
         self.assertEqual(response.status_code, 200)
         data = self._response_to_dict(response)
@@ -178,9 +187,13 @@ class TestMoonsData(TestCase):
             permissions=["moonmining.basic_access", "moonmining.extractions_access"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+        my_view = views.MoonListJson.as_view()
+
         # when
-        response = self.client.get(f"/moonmining/moons_data/{views.MoonsCategory.OURS}")
+        response = my_view(request, category=views.MoonsCategory.OURS)
+
         # then
         self.assertEqual(response.status_code, 200)
         data = self._response_to_dict(response)
@@ -193,12 +206,14 @@ class TestMoonsData(TestCase):
             permissions=["moonmining.basic_access", "moonmining.extractions_access"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
         moon = Moon.objects.get(pk=40131695)
         refinery = RefineryFactory(moon=moon)
         RefineryFactory(owner=refinery.owner, moon=None)
+        request = self.factory.get("/")
+        request.user = user
+        my_view = views.MoonListJson.as_view()
         # when
-        response = self.client.get(f"/moonmining/moons_data/{views.MoonsCategory.OURS}")
+        response = my_view(request, category=views.MoonsCategory.OURS)
         # then
         self.assertEqual(response.status_code, 200)
         data = self._response_to_dict(response)
@@ -211,48 +226,17 @@ class TestMoonsData(TestCase):
             permissions=["moonmining.basic_access", "moonmining.upload_moon_scan"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
         self.moon.products_updated_by = user
         self.moon.save()
+        request = self.factory.get("/")
+        request.user = user
+        my_view = views.MoonListJson.as_view()
         # when
-        response = self.client.get(
-            f"/moonmining/moons_data/{views.MoonsCategory.UPLOADS}"
-        )
+        response = my_view(request, category=views.MoonsCategory.UPLOADS)
         # then
         self.assertEqual(response.status_code, 200)
         data = self._response_to_dict(response)
         self.assertSetEqual(set(data.keys()), {40161708})
-
-    def test_should_return_fdd_for_all_moons(self):
-        # given
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=["moonmining.basic_access", "moonmining.view_all_moons"],
-            scopes=Owner.esi_scopes(),
-        )
-        moon = Moon.objects.get(pk=40131695)
-        RefineryFactory(moon=moon)
-        self.client.force_login(user)
-        # when
-        response = self.client.get(
-            f"/moonmining/moons_fdd_data/{views.MoonsCategory.ALL}"
-            "?columns=alliance_name,corporation_name,region_name,"
-            "constellation_name,solar_system_name,rarity_class_str,label_name,"
-            "has_refinery_str,has_extraction_str,invalid_column"
-        )
-        # then
-        self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-        self.assertListEqual(data["alliance_name"], ["Wayne Enterprises"])
-        self.assertListEqual(data["corporation_name"], ["Wayne Technologies"])
-        self.assertListEqual(data["region_name"], ["Heimatar", "Metropolis"])
-        self.assertListEqual(data["constellation_name"], ["Aldodan", "Hed"])
-        self.assertListEqual(data["solar_system_name"], ["Auga", "Helgatild"])
-        self.assertListEqual(data["rarity_class_str"], ["R64"])
-        self.assertListEqual(data["label_name"], ["Dummy"])
-        self.assertListEqual(data["has_refinery_str"], ["no", "yes"])
-        self.assertListEqual(data["has_extraction_str"], [])
-        self.assertIn("ERROR", data["invalid_column"][0])
 
 
 class TestMoonInfo(TestCase):
@@ -389,6 +373,7 @@ class TestExtractionsData(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.factory = RequestFactory()
         load_eveuniverse()
         load_allianceauth()
         helpers.generate_eve_entities_from_allianceauth()
@@ -423,11 +408,12 @@ class TestExtractionsData(TestCase):
             ],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+
         # when
-        response = self.client.get(
-            f"/moonmining/extractions_data/{views.ExtractionsCategory.PAST}",
-        )
+        response = views.extractions_data(request, views.ExtractionsCategory.PAST)
+
         # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response)
@@ -444,12 +430,11 @@ class TestExtractionsData(TestCase):
             permissions=["moonmining.basic_access"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+
         # when
-        response = self.client.get(
-            f"/moonmining/extractions_data/{views.ExtractionsCategory.PAST}",
-        )
-        # then
+        response = views.extractions_data(request, views.ExtractionsCategory.PAST)
         self.assertEqual(response.status_code, 302)
 
     def test_should_not_show_ledger_button_wo_permission(self):
@@ -466,11 +451,12 @@ class TestExtractionsData(TestCase):
             permissions=["moonmining.basic_access", "moonmining.extractions_access"],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+
         # when
-        response = self.client.get(
-            f"/moonmining/extractions_data/{views.ExtractionsCategory.PAST}",
-        )
+        response = views.extractions_data(request, views.ExtractionsCategory.PAST)
+
         # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response)
@@ -488,11 +474,12 @@ class TestExtractionsData(TestCase):
             ],
             scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user)
+        request = self.factory.get("/")
+        request.user = user
+
         # when
-        response = self.client.get(
-            f"/moonmining/extractions_data/{views.ExtractionsCategory.PAST}",
-        )
+        response = views.extractions_data(request, views.ExtractionsCategory.PAST)
+
         # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response)

@@ -3,18 +3,24 @@ from unittest.mock import patch
 
 import pytz
 
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from django_webtest import WebTest
 from eveuniverse.models import EveMoon
 
 from app_utils.esi import EsiStatus
-from app_utils.testing import NoSocketsTestCase, create_user_from_evecharacter
+from app_utils.testing import (
+    NoSocketsTestCase,
+    create_user_from_evecharacter,
+    json_response_to_python,
+)
+
+from moonmining import views
+from moonmining.tests import helpers
 
 from .. import tasks
-from ..models import Owner, Refinery
-from . import helpers
+from ..models import Label, Moon, Owner, Refinery
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.factories import (
     ExtractionFactory,
@@ -217,3 +223,50 @@ class TestProcessSurveyInput(TestCase):
         _, kwargs = mock_notify.call_args
         self.assertEqual(kwargs["user"], self.user)
         self.assertEqual(kwargs["level"], "danger")
+
+
+class TestMoonsDataFdd(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_eveuniverse()
+        load_allianceauth()
+        helpers.generate_market_prices()
+        cls.moon = MoonFactory(eve_moon=EveMoon.objects.get(id=40161708))
+        cls.moon.label = Label.objects.create(name="Dummy")
+        cls.moon.save()
+        MoonFactory(eve_moon=EveMoon.objects.get(id=40131695))
+        MoonFactory(eve_moon=EveMoon.objects.get(id=40161709))
+
+    def test_should_return_fdd_for_all_moons(self):
+        # given
+        user, _ = create_user_from_evecharacter(
+            1002,
+            permissions=["moonmining.basic_access", "moonmining.view_all_moons"],
+            scopes=Owner.esi_scopes(),
+        )
+        moon = Moon.objects.get(pk=40131695)
+        RefineryFactory(moon=moon)
+        self.client.force_login(user)
+        # when
+        path = (
+            f"/moonmining/moons_fdd_data/{views.MoonsCategory.ALL.value}"
+            "?columns=alliance_name,corporation_name,region_name,"
+            "constellation_name,solar_system_name,rarity_class_str,label_name,"
+            "has_refinery_str,has_extraction_str,invalid_column"
+        )
+        response = self.client.get(path)
+        # then
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertListEqual(data["alliance_name"], ["Wayne Enterprises"])
+        self.assertListEqual(data["corporation_name"], ["Wayne Technologies"])
+        self.assertListEqual(data["region_name"], ["Heimatar", "Metropolis"])
+        self.assertListEqual(data["constellation_name"], ["Aldodan", "Hed"])
+        self.assertListEqual(data["solar_system_name"], ["Auga", "Helgatild"])
+        self.assertListEqual(data["rarity_class_str"], ["R64"])
+        self.assertListEqual(data["label_name"], ["Dummy"])
+        self.assertListEqual(data["has_refinery_str"], ["no", "yes"])
+        self.assertListEqual(data["has_extraction_str"], [])
+        self.assertIn("ERROR", data["invalid_column"][0])
