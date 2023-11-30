@@ -1,3 +1,5 @@
+"""Moon views."""
+
 from enum import Enum
 from typing import Union
 
@@ -27,7 +29,7 @@ from moonmining.app_settings import (
 from moonmining.forms import MoonScanForm
 from moonmining.helpers import user_perms_lookup
 from moonmining.models import Extraction, Moon
-from moonmining.views._common import moon_details_button_html
+from moonmining.views._helpers import moon_details_button_html
 from moonmining.views.extractions import extraction_details_button_html
 
 

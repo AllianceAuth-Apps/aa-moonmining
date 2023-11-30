@@ -1,10 +1,20 @@
+"""Extraction views."""
+
 import datetime as dt
 from enum import Enum
 
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import ExpressionWrapper, F, FloatField, IntegerField, Sum, Value
+from django.db.models import (
+    ExpressionWrapper,
+    F,
+    FloatField,
+    IntegerField,
+    QuerySet,
+    Sum,
+    Value,
+)
 from django.db.models.functions import Coalesce
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.html import format_html
@@ -23,7 +33,7 @@ from moonmining.app_settings import (
 )
 from moonmining.constants import DATE_FORMAT, DATETIME_FORMAT
 from moonmining.models import Extraction
-from moonmining.views._common import moon_details_button_html
+from moonmining.views._helpers import moon_details_button_html
 
 
 class ExtractionsCategory(str, helpers.EnumToDict, Enum):
@@ -68,45 +78,21 @@ def extraction_details_button_html(extraction_pk: int) -> str:
 
 @login_required
 @permission_required(["moonmining.extractions_access", "moonmining.basic_access"])
-def extractions_data(request, category):
+def extractions_data(request: HttpRequest, category: str):
     data = []
-    stale_cutoff = now() - dt.timedelta(
-        hours=MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE
-    )
-    extractions_qs = (
-        Extraction.objects.annotate_volume()
-        .selected_related_defaults()
-        .select_related(
-            "refinery__moon__eve_moon__eve_planet__eve_solar_system",
-            "refinery__moon__eve_moon__eve_planet__eve_solar_system__eve_constellation",
-            "refinery__moon__eve_moon__eve_planet__eve_solar_system__eve_constellation__eve_region",
-        )
-    )
-    if category == ExtractionsCategory.UPCOMING:
-        extractions_qs = extractions_qs.filter(
-            auto_fracture_at__gte=stale_cutoff
-        ).exclude(status=Extraction.Status.CANCELED)
-    elif category == ExtractionsCategory.PAST:
-        extractions_qs = extractions_qs.filter(
-            auto_fracture_at__lt=stale_cutoff
-        ) | extractions_qs.filter(status=Extraction.Status.CANCELED)
-    else:
-        extractions_qs = Extraction.objects.none()
     can_see_ledger = request.user.has_perm("moonmining.view_moon_ledgers")
+    extractions_qs = _calc_extractions_qs(ExtractionsCategory(category))
     for extraction in extractions_qs:
-        corporation_name = extraction.refinery.owner.name
-        alliance_name = extraction.refinery.owner.alliance_name
         moon = extraction.refinery.moon
         moon_name = str(moon)
         refinery_name = str(extraction.refinery.name)
         solar_system = moon.eve_moon.eve_planet.eve_solar_system
-        constellation = region = solar_system.eve_constellation
-        region = constellation.eve_region
         location = format_html(
             "{}<br><i>{}</i>",
             link_html(dotlan.solar_system_url(solar_system.name), moon_name),
-            region.name,
+            solar_system.eve_constellation.eve_region.name,
         )
+
         if (
             extraction.status == Extraction.Status.COMPLETED
             and extraction.ledger.exists()
@@ -122,6 +108,7 @@ def extractions_data(request, category):
         else:
             actions_html = ""
             mined_value = None
+
         actions_html += extraction_details_button_html(extraction.pk)
         actions_html += "&nbsp;" + moon_details_button_html(extraction.refinery.moon)
         status_html = format_html(
@@ -149,11 +136,11 @@ def extractions_data(request, category):
                 "value": extraction.value if extraction.value else None,
                 "mined_value": mined_value,
                 "details": actions_html,
-                "corporation_name": corporation_name,
-                "alliance_name": alliance_name,
+                "corporation_name": extraction.refinery.owner.name,
+                "alliance_name": extraction.refinery.owner.alliance_name,
                 "moon_name": moon_name,
-                "region_name": region.name,
-                "constellation_name": constellation.name,
+                "region_name": solar_system.eve_constellation.eve_region.name,
+                "constellation_name": solar_system.eve_constellation.name,
                 "rarity_class": moon.get_rarity_class_display(),
                 "is_jackpot_str": yesno_str(extraction.is_jackpot),
                 "is_ready": extraction.chunk_arrival_at <= now(),
@@ -162,6 +149,34 @@ def extractions_data(request, category):
             }
         )
     return JsonResponse(data, safe=False)
+
+
+def _calc_extractions_qs(category: ExtractionsCategory) -> QuerySet[Extraction]:
+    stale_cutoff = now() - dt.timedelta(
+        hours=MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE
+    )
+    extractions_qs = (
+        Extraction.objects.annotate_volume()
+        .selected_related_defaults()
+        .select_related(
+            "refinery__moon__eve_moon__eve_planet__eve_solar_system",
+            "refinery__moon__eve_moon__eve_planet__eve_solar_system__eve_constellation",
+            "refinery__moon__eve_moon__eve_planet__eve_solar_system__eve_constellation__eve_region",
+        )
+    )
+    if category is ExtractionsCategory.UPCOMING:
+        extractions_qs = extractions_qs.filter(
+            auto_fracture_at__gte=stale_cutoff
+        ).exclude(status=Extraction.Status.CANCELED)
+
+    elif category is ExtractionsCategory.PAST:
+        extractions_qs = extractions_qs.filter(
+            auto_fracture_at__lt=stale_cutoff
+        ) | extractions_qs.filter(status=Extraction.Status.CANCELED)
+
+    else:
+        extractions_qs = Extraction.objects.none()
+    return extractions_qs
 
 
 @login_required

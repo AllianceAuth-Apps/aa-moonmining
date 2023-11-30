@@ -1,3 +1,5 @@
+"""Report views."""
+
 import datetime as dt
 
 from django.contrib.auth.decorators import login_required, permission_required
