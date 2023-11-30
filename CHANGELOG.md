@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Support for Python 3.11
+- Support for AA4 / Django 4.2
 
 ### Changed
 

@@ -1,8 +1,5 @@
 """Models."""
 
-# pylint: disable = too-many-lines
-# FIXME: Restructure module
-
 import datetime as dt
 from collections import defaultdict
 from enum import Enum
