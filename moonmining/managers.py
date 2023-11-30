@@ -142,13 +142,8 @@ class MoonManagerBase(models.Manager):
             # Find all groups of scans.
             if len(lines[0]) == 0 or lines[0][0] == "Moon":
                 lines = lines[1:]
-            sub_lists = []
-            for line in lines:
-                # Find the lines that start a scan
-                if line[0] == "":
-                    pass
-                else:
-                    sub_lists.append(lines.index(line))
+
+            sub_lists = MoonManagerBase._find_lines_that_start_a_scan(lines)
 
             # Separate out individual surveys
             for i, _obj in enumerate(sub_lists):
@@ -174,37 +169,31 @@ class MoonManagerBase(models.Manager):
             error_name = ""
         return surveys, error_name
 
+    @staticmethod
+    def _find_lines_that_start_a_scan(lines):
+        sub_lists = []
+        for line in lines:
+            if line[0] == "":
+                pass
+            else:
+                sub_lists.append(lines.index(line))
+        return sub_lists
+
     def _process_surveys(
         self, surveys: list, user: Optional[User]
     ) -> Tuple[List[SurveyProcessResult], bool]:
-        from .models import EveOreType, MoonProduct
+        from .models import Moon
 
         overall_success = True
         process_results = []
         for survey in surveys:
-            moon_name = ""
             try:
-                moon_name = survey[0][0]
-                moon_id = survey[1][6]
-                eve_moon = EveMoon.objects.get_or_create_esi(id=moon_id)[0]
-                moon = self.get_or_create(eve_moon=eve_moon)[0]
-                moon_products = []
-                survey = survey[1:]
-                for product_data in survey:
-                    # Trim off the empty index at the front
-                    product_data = product_data[1:]
-                    ore_type = EveOreType.objects.get_or_create_esi(id=product_data[2])[
-                        0
-                    ]
-                    moon_products.append(
-                        MoonProduct(
-                            moon=moon, amount=product_data[1], ore_type=ore_type
-                        )
-                    )
+                moon: Moon = self._get_or_create_from_survey(survey)
+                moon_products = self._extract_moon_products(survey, moon)
                 moon.update_products(moon_products, updated_by=user)
                 logger.info("Added moon survey for %s", moon.name)
 
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable = broad-exception-caught FIXME
                 logger.warning(
                     "An issue occurred while processing the following moon survey: %s",
                     survey,
@@ -212,16 +201,40 @@ class MoonManagerBase(models.Manager):
                 )
                 error_name = type(ex).__name__
                 overall_success = success = False
+                moon = None
             else:
                 success = True
                 error_name = None
 
             process_results.append(
                 SurveyProcessResult(
-                    moon_name=moon_name, success=success, error_name=error_name
+                    moon_name=moon.name if moon else "",
+                    success=success,
+                    error_name=error_name,
                 )
             )
         return process_results, overall_success
+
+    def _extract_moon_products(self, survey, moon):
+        from .models import EveOreType, MoonProduct
+
+        moon_products = []
+        survey = survey[1:]
+        for product_data in survey:
+            # Trim off the empty index at the front
+            product_data = product_data[1:]
+            ore_type = EveOreType.objects.get_or_create_esi(id=product_data[2])[0]
+            moon_products.append(
+                MoonProduct(moon=moon, amount=product_data[1], ore_type=ore_type)
+            )
+
+        return moon_products
+
+    def _get_or_create_from_survey(self, survey):
+        moon_id = survey[1][6]
+        eve_moon = EveMoon.objects.get_or_create_esi(id=moon_id)[0]
+        moon = self.get_or_create(eve_moon=eve_moon)[0]
+        return moon
 
     @staticmethod
     def _send_survey_process_report_to_user(
