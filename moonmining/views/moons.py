@@ -41,6 +41,7 @@ class MoonsCategory(str, helpers.EnumToDict, Enum):
     OURS = "our_moons"
 
 
+# pylint: disable = too-many-ancestors
 class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableView):
     model = Moon
     permission_required = "moonmining.basic_access"
@@ -318,48 +319,58 @@ def moons_fdd_data(request: HttpRequest, category: str) -> JsonResponse:
     result = {}
     if columns:
         for column in columns.split(","):
-            if column == "alliance_name":
-                options = qs.exclude(
-                    refinery__owner__corporation__alliance__isnull=True,
-                ).values_list(
-                    "refinery__owner__corporation__alliance__alliance_name", flat=True
-                )
-            elif column == "corporation_name":
-                options = qs.exclude(refinery__isnull=True).values_list(
-                    "refinery__owner__corporation__corporation_name", flat=True
-                )
-            elif column == "region_name":
-                options = qs.values_list(
-                    "eve_moon__eve_planet__eve_solar_system__eve_constellation__eve_region__name",
-                    flat=True,
-                )
-            elif column == "constellation_name":
-                options = qs.values_list(
-                    "eve_moon__eve_planet__eve_solar_system__eve_constellation__name",
-                    flat=True,
-                )
-            elif column == "solar_system_name":
-                options = qs.values_list(
-                    "eve_moon__eve_planet__eve_solar_system__name",
-                    flat=True,
-                )
-            elif column == "rarity_class_str":
-                options = qs.values_list("rarity_class_str", flat=True)
-            elif column == "label_name":
-                options = qs.exclude(label__isnull=True).values_list(
-                    "label__name", flat=True
-                )
-            elif column == "has_refinery_str":
-                options = qs.values_list("has_refinery_str", flat=True)
-            elif column == "has_extraction_str":
-                if request.user.has_perm("moonmining.extractions_access"):
-                    options = qs.values_list("has_extraction_str", flat=True)
-                else:
-                    options = []
-            else:
-                options = [f"** ERROR: Invalid column name '{column}' **"]
+            options = _calc_options(request, qs, column)
             result[column] = sorted(list(set(options)), key=str.casefold)
     return JsonResponse(result, safe=False)
+
+
+# pylint: disable = too-many-return-statements
+def _calc_options(request, qs, column):
+    if column == "alliance_name":
+        return qs.exclude(
+            refinery__owner__corporation__alliance__isnull=True,
+        ).values_list(
+            "refinery__owner__corporation__alliance__alliance_name", flat=True
+        )
+
+    if column == "corporation_name":
+        return qs.exclude(refinery__isnull=True).values_list(
+            "refinery__owner__corporation__corporation_name", flat=True
+        )
+
+    if column == "region_name":
+        return qs.values_list(
+            "eve_moon__eve_planet__eve_solar_system__eve_constellation__eve_region__name",
+            flat=True,
+        )
+
+    if column == "constellation_name":
+        return qs.values_list(
+            "eve_moon__eve_planet__eve_solar_system__eve_constellation__name",
+            flat=True,
+        )
+
+    if column == "solar_system_name":
+        return qs.values_list(
+            "eve_moon__eve_planet__eve_solar_system__name",
+            flat=True,
+        )
+
+    if column == "rarity_class_str":
+        return qs.values_list("rarity_class_str", flat=True)
+
+    if column == "label_name":
+        return qs.exclude(label__isnull=True).values_list("label__name", flat=True)
+
+    if column == "has_refinery_str":
+        return qs.values_list("has_refinery_str", flat=True)
+
+    if column == "has_extraction_str":
+        if request.user.has_perm("moonmining.extractions_access"):
+            return qs.values_list("has_extraction_str", flat=True)
+        return []
+
+    return [f"** ERROR: Invalid column name '{column}' **"]
 
 
 @login_required()
