@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Support for Python 3.11
 
+### Changed
+
+- Enabled local tests to run in parallel
+
 ## [1.9.3] - 2023-07-13
 
 ### Changed

@@ -1,6 +1,6 @@
 import datetime as dt
 
-from django.test import TestCase
+from django.test import TestCase, tag
 
 from .. import helpers
 from .testdata.factories import UserMainFactory
@@ -32,6 +32,8 @@ class TestRoundDatetime(TestCase):
         )
 
 
+# FIXME: enable for parallel tests
+@tag("exclude-parallel")
 class TestUserPermLookup(TestCase):
     def test_should_return_lookup(self):
         # given
