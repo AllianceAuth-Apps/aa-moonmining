@@ -148,7 +148,7 @@ def extractions(request):
 @login_required
 @permission_required(["moonmining.extractions_access", "moonmining.basic_access"])
 def extractions_data(request, category):
-    data = list()
+    data = []
     stale_cutoff = now() - dt.timedelta(
         hours=MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE
     )
@@ -616,7 +616,7 @@ def moons_fdd_data(request: HttpRequest, category: str) -> JsonResponse:
     """Provide lists for drop down fields."""
     qs = MoonListJson.initial_queryset(category=category, user=request.user)
     columns = request.GET.get("columns")
-    result = dict()
+    result = {}
     if columns:
         for column in columns.split(","):
             if column == "alliance_name":
@@ -801,7 +801,7 @@ def report_owned_value_data(request):
     for moon in moon_query.order_by("eve_moon__name"):
         corporation_name = moon.refinery.owner.name
         if corporation_name not in corporation_moons:
-            corporation_moons[corporation_name] = {"moons": list(), "total": 0}
+            corporation_moons[corporation_name] = {"moons": [], "total": 0}
         corporation_moons[corporation_name]["moons"].append(moon)
         corporation_moons[corporation_name]["total"] += default_if_none(moon.value, 0)
 
@@ -816,7 +816,7 @@ def report_owned_value_data(request):
     grand_total = sum(
         [corporation["total"] for corporation in corporation_moons.values()]
     )
-    data = list()
+    data = []
     for corporation_name, details in corporation_moons.items():
         corporation = f"{corporation_name} ({len(details['moons'])})"
         counter = 0
@@ -957,7 +957,7 @@ def report_user_mining_data(request):
             )
         )
     )
-    data = list()
+    data = []
     for user in users_mining_totals:
         corporation_name = user.profile.main_character.corporation_name
         if user.profile.main_character.alliance_ticker:

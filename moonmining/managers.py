@@ -176,7 +176,7 @@ class MoonManagerBase(models.Manager):
         from .models import EveOreType, MoonProduct
 
         overall_success = True
-        process_results = list()
+        process_results = []
         for survey in surveys:
             moon_name = ""
             try:
@@ -184,7 +184,7 @@ class MoonManagerBase(models.Manager):
                 moon_id = survey[1][6]
                 eve_moon = EveMoon.objects.get_or_create_esi(id=moon_id)[0]
                 moon = self.get_or_create(eve_moon=eve_moon)[0]
-                moon_products = list()
+                moon_products = []
                 survey = survey[1:]
                 for product_data in survey:
                     # Trim off the empty index at the front

@@ -85,7 +85,7 @@ class Command(BaseCommand):
 
     def read_moons(self, input_file) -> tuple:
         self.stdout.write(f"Importing moons from: {input_file} ...")
-        moons = dict()
+        moons = {}
         ore_types = set()
         with input_file.open("r", encoding="utf-8") as fp:
             csv_reader = csv.DictReader(fp)
@@ -94,7 +94,7 @@ class Command(BaseCommand):
                 ore_type_id = int(row["ore_type_id"])
                 amount = float(row["amount"])
                 if moon_id not in moons:
-                    moons[moon_id] = list()
+                    moons[moon_id] = []
                 moons[moon_id].append((ore_type_id, amount))
                 ore_types.add(ore_type_id)
 

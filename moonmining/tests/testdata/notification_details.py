@@ -13,7 +13,7 @@ with file.open("r", encoding="utf-8") as fp:
 notifications_raw = esi_data["Character"]["get_characters_character_id_notifications"][
     "1005"
 ]
-notifications = dict()
+notifications = {}
 for notif_raw in notifications_raw:
     notif = copy(notif_raw)
     del notif["text"]

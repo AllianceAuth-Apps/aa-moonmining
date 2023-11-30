@@ -1084,7 +1084,7 @@ class Owner(models.Model):
             corporation_id=self.corporation.corporation_id,
             token=self.fetch_token().valid_access_token(),
         ).results()
-        refineries = dict()
+        refineries = {}
         for structure_info in structures:
             eve_type, _ = EveType.objects.get_or_create_esi(
                 id=structure_info["type_id"]
@@ -1158,7 +1158,7 @@ class Owner(models.Model):
             "corporation": EveEntity.CATEGORY_CORPORATION,
             "alliance": EveEntity.CATEGORY_ALLIANCE,
         }
-        new_notification_objects = list()
+        new_notification_objects = []
         for notification in new_notifications:
             known_sender_type = sender_type_map.get(notification["sender_type"])
             if known_sender_type:
@@ -1491,7 +1491,7 @@ class Refinery(models.Model):
         existing_extractions = set(
             self.extractions.values_list("started_at", flat=True)
         )
-        new_extractions = list()
+        new_extractions = []
         for esi_extraction in esi_extractions:
             extraction_start_time = esi_extraction["extraction_start_time"]
             if extraction_start_time not in existing_extractions:
