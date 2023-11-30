@@ -1,3 +1,5 @@
+"""Core logic."""
+
 import datetime as dt
 from dataclasses import dataclass
 from enum import IntEnum, auto
@@ -6,6 +8,7 @@ from typing import List, Optional
 from . import helpers
 
 
+# pylint: disable = too-many-instance-attributes
 @dataclass
 class CalculatedExtraction:
     """An extraction calculated from moon mining notifications."""

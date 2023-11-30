@@ -8,7 +8,8 @@ from eveuniverse.models import EveMarketPrice, EveType
 
 from app_utils.testing import NoSocketsTestCase
 
-from ..models import Moon
+from moonmining.models import Moon
+
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 

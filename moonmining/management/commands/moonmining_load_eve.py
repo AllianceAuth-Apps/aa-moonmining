@@ -5,9 +5,10 @@ from eveuniverse.tasks import update_or_create_eve_object
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
-from ... import __title__
-from ...constants import EveCategoryId
-from ...models import EveOreType
+from moonmining import __title__
+from moonmining.constants import EveCategoryId
+from moonmining.models import EveOreType
+
 from . import get_input
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

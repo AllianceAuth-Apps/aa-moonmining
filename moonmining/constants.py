@@ -1,3 +1,6 @@
+"""Global constants."""
+
+
 from enum import IntEnum
 
 # EVE IDs

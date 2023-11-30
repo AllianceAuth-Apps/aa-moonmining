@@ -17,10 +17,10 @@ from app_utils.testdata_factories import (
 )
 from app_utils.testing import create_user_from_evecharacter
 
-from ...app_settings import MOONMINING_VOLUME_PER_DAY
-from ...constants import EveTypeId
-from ...core import CalculatedExtraction, CalculatedExtractionProduct
-from ...models import (
+from moonmining.app_settings import MOONMINING_VOLUME_PER_DAY
+from moonmining.constants import EveTypeId
+from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
+from moonmining.models import (
     EveOreType,
     Extraction,
     ExtractionProduct,

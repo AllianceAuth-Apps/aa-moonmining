@@ -89,7 +89,7 @@ ore_type_ids = [int(obj["type_id"]) for obj in data["ore_type_ids"]]
 
 print(f"Generating {MAX_MOONS} moons...")
 random_user = User.objects.order_by("?").first()
-my_moons = list()
+my_moons = []
 for moon_id in random.sample(moon_ids, k=MAX_MOONS):
     print(f"Creating moon {moon_id}")
     eve_moon, _ = EveMoon.objects.get_or_create_esi(id=moon_id)
@@ -120,7 +120,7 @@ owner, _ = Owner.objects.get_or_create(corporation=corporation)
 Refinery.objects.filter(owner=owner).delete()
 eve_type, _ = EveType.objects.get_or_create_esi(id=35835)
 character, _ = EveEntity.objects.get_or_create_esi(id=DUMMY_CHARACTER_ID)
-my_extractions = list()
+my_extractions = []
 for moon in random.choices(my_moons, k=MAX_REFINERIES):
     if not hasattr(moon, "refinery"):
         print(f"Creating refinery for moon: {moon}")

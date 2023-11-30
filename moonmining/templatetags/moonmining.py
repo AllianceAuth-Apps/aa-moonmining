@@ -1,9 +1,11 @@
+"""Template Tags."""
+
 import datetime as dt
 from typing import Optional
 
 from django import template
 
-from ..constants import DATETIME_FORMAT
+from moonmining.constants import DATETIME_FORMAT
 
 register = template.Library()
 

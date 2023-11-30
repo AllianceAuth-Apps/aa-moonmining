@@ -6,8 +6,8 @@ from eveuniverse.models import EveEntity, EveMarketPrice, EveType
 from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import create_user_from_evecharacter, response_text
 
-from ..constants import EveTypeId
-from ..models import EveOreType, Owner
+from moonmining.constants import EveTypeId
+from moonmining.models import EveOreType, Owner
 
 
 def create_default_user_from_evecharacter(character_id):

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.10.0] - 2023-11-30
+
+### Added
+
+- Support for Python 3.11
+- Support for AA4 / Django 4.2
+
+### Changed
+
+- Enabled local tests to run in parallel
+- Refactoring
+- Added pylint checks to CI
+
 ## [1.9.3] - 2023-07-13
 
 ### Changed

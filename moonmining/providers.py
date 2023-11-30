@@ -1,3 +1,5 @@
+"""Singular provider object for ESI."""
+
 from esi.clients import EsiClientProvider
 
 from . import __version__

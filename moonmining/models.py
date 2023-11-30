@@ -1,7 +1,9 @@
+"""Models."""
+
 import datetime as dt
 from collections import defaultdict
 from enum import Enum
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple
 
 import yaml
 
@@ -11,7 +13,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import F, Sum, Value
 from django.db.models.functions import Coalesce
-from django.utils.functional import cached_property, classproperty
+from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -64,7 +66,7 @@ class NotificationType(str, Enum):
     def __str__(self) -> str:
         return self.value
 
-    @classproperty
+    @classmethod
     def all_moon_mining(cls) -> set:
         """Return all moon mining notifications"""
         return {
@@ -75,7 +77,7 @@ class NotificationType(str, Enum):
             cls.MOONMINING_LASER_FIRED,
         }
 
-    @classproperty
+    @classmethod
     def with_products(cls) -> set:
         """Return all notification types with have products."""
         return {
@@ -309,11 +311,11 @@ class Extraction(models.Model):
             except KeyError:
                 raise ValueError("Invalid status for notification type") from None
 
-        @classproperty
+        @classmethod
         def considered_active(cls):
             return [cls.STARTED, cls.READY]
 
-        @classproperty
+        @classmethod
         def considered_inactive(cls):
             return [cls.CANCELED, cls.COMPLETED]
 
@@ -470,10 +472,10 @@ class Extraction(models.Model):
             ]
         except (ObjectDoesNotExist, AttributeError):
             return None
-        else:
-            if not products_qualities:
-                return None
-            return all(products_qualities)
+
+        if not products_qualities:
+            return None
+        return all(products_qualities)
 
     def update_calculated_properties(self) -> None:
         """Update calculated properties for this extraction."""
@@ -748,12 +750,10 @@ class Moon(models.Model):
     def calc_rarity_class(self) -> Optional[OreRarityClass]:
         try:
             return max(
-                [
-                    OreRarityClass.from_eve_group_id(eve_group_id)
-                    for eve_group_id in self.products.select_related(
-                        "ore_type"
-                    ).values_list("ore_type__eve_group_id", flat=True)
-                ]
+                OreRarityClass.from_eve_group_id(eve_group_id)
+                for eve_group_id in self.products.select_related(
+                    "ore_type"
+                ).values_list("ore_type__eve_group_id", flat=True)
             )
         except (ObjectDoesNotExist, ValueError):
             return OreRarityClass.NONE
@@ -914,11 +914,9 @@ class Notification(models.Model):
         return str(self.notification_id)
 
     def __repr__(self) -> str:
-        return "%s(notification_id=%s, owner='%s', notif_type='%s')" % (
-            self.__class__.__name__,
-            self.notification_id,
-            self.owner,
-            self.notif_type,
+        return (
+            f"{self.__class__.__name__}(notification_id={self.notification_id}, "
+            f"owner='{self.owner}', notif_type='{self.notif_type}')"
         )
 
     def to_calculated_extraction(self) -> CalculatedExtraction:
@@ -947,10 +945,10 @@ class Notification(models.Model):
                     ),
                 }
             )
-        elif (
-            self.notif_type == NotificationType.MOONMINING_LASER_FIRED
-            or self.notif_type == NotificationType.MOONMINING_AUTOMATIC_FRACTURE
-        ):
+        elif self.notif_type in {
+            NotificationType.MOONMINING_LASER_FIRED,
+            NotificationType.MOONMINING_AUTOMATIC_FRACTURE,
+        }:
             params.update(
                 {
                     "fractured_by": self.details.get("firedBy"),
@@ -1052,7 +1050,7 @@ class Owner(models.Model):
         """Update all refineries from ESI."""
         logger.info("%s: Updating refineries...", self)
         refineries = self._fetch_refineries_from_esi()
-        for structure_id in refineries.keys():
+        for structure_id in refineries:
             try:
                 self._update_or_create_refinery_from_esi(structure_id)
             except OSError as exc:
@@ -1084,7 +1082,7 @@ class Owner(models.Model):
             corporation_id=self.corporation.corporation_id,
             token=self.fetch_token().valid_access_token(),
         ).results()
-        refineries = dict()
+        refineries = {}
         for structure_info in structures:
             eve_type, _ = EveType.objects.get_or_create_esi(
                 id=structure_info["type_id"]
@@ -1137,7 +1135,7 @@ class Owner(models.Model):
         moon_notifications = [
             notif
             for notif in all_notifications
-            if notif["type"] in NotificationType.all_moon_mining
+            if notif["type"] in NotificationType.all_moon_mining()
         ]
         return moon_notifications
 
@@ -1158,7 +1156,7 @@ class Owner(models.Model):
             "corporation": EveEntity.CATEGORY_CORPORATION,
             "alliance": EveEntity.CATEGORY_ALLIANCE,
         }
-        new_notification_objects = list()
+        new_notification_objects = []
         for notification in new_notifications:
             known_sender_type = sender_type_map.get(notification["sender_type"])
             if known_sender_type:
@@ -1237,112 +1235,16 @@ class Owner(models.Model):
             logger.info("%s: Created %d new extractions.", self, new_extractions_count)
 
     def update_extractions_from_notifications(self):
-        """Add information from notifications to extractions."""
+        """Create or update extractions from notifications."""
         logger.info("%s: Updating extractions from notifications...", self)
         notifications_count = self.notifications.count()
         if not notifications_count:
             logger.info("%s: No moon notifications.", self)
             return
+
         logger.info("%s: Processing %d moon notifications.", self, notifications_count)
-
-        # create or update extractions from notifications by refinery
         for refinery in self.refineries.all():
-            updated_count = 0
-            extraction = None
-            notifications_for_refinery = self.notifications.filter(
-                details__structureID=refinery.id
-            )
-            if not refinery.moon and notifications_for_refinery.exists():
-                # Update the refinery's moon from notification in case
-                # it was not found by nearest_celestial.
-                notif = notifications_for_refinery.first()
-                refinery.update_moon_from_eve_id(notif.details["moonID"])
-            for notif in notifications_for_refinery.order_by("timestamp"):
-                if notif.notif_type == NotificationType.MOONMINING_EXTRACTION_STARTED:
-                    extraction = notif.to_calculated_extraction()
-                    if refinery.moon.update_products_from_calculated_extraction(
-                        extraction,
-                        overwrite_survey=MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES,
-                    ):
-                        logger.info(
-                            "%s: Products updated from extraction", refinery.moon
-                        )
-
-                elif extraction:
-                    if extraction.status == CalculatedExtraction.Status.STARTED:
-                        if (
-                            notif.notif_type
-                            == NotificationType.MOONMINING_EXTRACTION_CANCELLED
-                        ):
-                            extraction.status = CalculatedExtraction.Status.CANCELED
-                            extraction.canceled_at = notif.timestamp
-                            extraction.canceled_by = notif.details.get("cancelledBy")
-                            updated = Extraction.objects.update_from_calculated(
-                                extraction
-                            )
-                            updated_count += 1 if updated else 0
-                            extraction = None
-
-                        elif (
-                            notif.notif_type
-                            == NotificationType.MOONMINING_EXTRACTION_FINISHED
-                        ):
-                            extraction.status = CalculatedExtraction.Status.READY
-                            extraction.products = (
-                                CalculatedExtractionProduct.create_list_from_dict(
-                                    notif.details["oreVolumeByType"]
-                                )
-                            )
-
-                    elif extraction.status == CalculatedExtraction.Status.READY:
-                        if notif.notif_type == NotificationType.MOONMINING_LASER_FIRED:
-                            extraction.status = CalculatedExtraction.Status.COMPLETED
-                            extraction.fractured_at = notif.timestamp
-                            extraction.fractured_by = notif.details.get("firedBy")
-                            extraction.products = (
-                                CalculatedExtractionProduct.create_list_from_dict(
-                                    notif.details["oreVolumeByType"]
-                                )
-                            )
-                            updated = Extraction.objects.update_from_calculated(
-                                extraction
-                            )
-                            updated_count += 1 if updated else 0
-                            extraction = None
-
-                        elif (
-                            notif.notif_type
-                            == NotificationType.MOONMINING_AUTOMATIC_FRACTURE
-                        ):
-                            extraction.status = CalculatedExtraction.Status.COMPLETED
-                            extraction.fractured_at = notif.timestamp
-                            extraction.products = (
-                                CalculatedExtractionProduct.create_list_from_dict(
-                                    notif.details["oreVolumeByType"]
-                                )
-                            )
-                            updated = Extraction.objects.update_from_calculated(
-                                extraction
-                            )
-                            updated_count += 1 if updated else 0
-                            extraction = None
-                else:
-                    if (
-                        notif.notif_type
-                        == NotificationType.MOONMINING_EXTRACTION_FINISHED
-                    ):
-                        extraction = notif.to_calculated_extraction()
-
-            if extraction:
-                updated = Extraction.objects.update_from_calculated(extraction)
-                updated_count += 1 if updated else 0
-            if updated_count:
-                logger.info(
-                    "%s: %s: Updated %d extractions from notifications",
-                    self,
-                    refinery,
-                    updated_count,
-                )
+            _update_extractions_for_refinery(self, refinery)
 
     def fetch_mining_ledger_observers_from_esi(self) -> set:
         logger.info("%s: Fetching mining observers from ESI...", self)
@@ -1491,7 +1393,7 @@ class Refinery(models.Model):
         existing_extractions = set(
             self.extractions.values_list("started_at", flat=True)
         )
-        new_extractions = list()
+        new_extractions = []
         for esi_extraction in esi_extractions:
             extraction_start_time = esi_extraction["extraction_start_time"]
             if extraction_start_time not in existing_extractions:
@@ -1534,3 +1436,96 @@ class Refinery(models.Model):
                 status=Extraction.Status.CANCELED, canceled_at=now()
             )
         return canceled_extractions_count
+
+
+def _update_extractions_for_refinery(owner: Owner, refinery: Refinery):
+    notifications_for_refinery = owner.notifications.filter(
+        details__structureID=refinery.id
+    )
+    if not refinery.moon and notifications_for_refinery.exists():
+        # Update the refinery's moon from notification in case
+        # it was not found by nearest_celestial.
+        notif = notifications_for_refinery.first()
+        refinery.update_moon_from_eve_id(notif.details["moonID"])
+
+    extraction, updated_count = _find_extraction_for_refinery(
+        refinery, notifications_for_refinery
+    )
+    if extraction:
+        updated = Extraction.objects.update_from_calculated(extraction)
+        updated_count += 1 if updated else 0
+
+    if updated_count:
+        logger.info(
+            "%s: %s: Updated %d extractions from notifications",
+            owner,
+            refinery,
+            updated_count,
+        )
+
+
+def _find_extraction_for_refinery(
+    refinery: Refinery,
+    notifications_for_refinery: models.QuerySet["Notification"],
+) -> Tuple[Optional[CalculatedExtraction], int]:
+    extraction: Optional[CalculatedExtraction] = None
+    updated_count = 0
+    for notif in notifications_for_refinery.order_by("timestamp"):
+        if notif.notif_type == NotificationType.MOONMINING_EXTRACTION_STARTED:
+            extraction = notif.to_calculated_extraction()
+            if refinery.moon.update_products_from_calculated_extraction(
+                extraction,
+                overwrite_survey=MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES,
+            ):
+                logger.info("%s: Products updated from extraction", refinery.moon)
+
+        elif extraction:
+            if extraction.status == CalculatedExtraction.Status.STARTED:
+                if notif.notif_type == NotificationType.MOONMINING_EXTRACTION_CANCELLED:
+                    extraction.status = CalculatedExtraction.Status.CANCELED
+                    extraction.canceled_at = notif.timestamp
+                    extraction.canceled_by = notif.details.get("cancelledBy")
+                    updated = Extraction.objects.update_from_calculated(extraction)
+                    updated_count += 1 if updated else 0
+                    extraction = None
+
+                elif (
+                    notif.notif_type == NotificationType.MOONMINING_EXTRACTION_FINISHED
+                ):
+                    extraction.status = CalculatedExtraction.Status.READY
+                    extraction.products = (
+                        CalculatedExtractionProduct.create_list_from_dict(
+                            notif.details["oreVolumeByType"]
+                        )
+                    )
+
+            elif extraction.status == CalculatedExtraction.Status.READY:
+                if notif.notif_type == NotificationType.MOONMINING_LASER_FIRED:
+                    extraction.status = CalculatedExtraction.Status.COMPLETED
+                    extraction.fractured_at = notif.timestamp
+                    extraction.fractured_by = notif.details.get("firedBy")
+                    extraction.products = (
+                        CalculatedExtractionProduct.create_list_from_dict(
+                            notif.details["oreVolumeByType"]
+                        )
+                    )
+                    updated = Extraction.objects.update_from_calculated(extraction)
+                    updated_count += 1 if updated else 0
+                    extraction = None
+
+                elif notif.notif_type == NotificationType.MOONMINING_AUTOMATIC_FRACTURE:
+                    extraction.status = CalculatedExtraction.Status.COMPLETED
+                    extraction.fractured_at = notif.timestamp
+                    extraction.products = (
+                        CalculatedExtractionProduct.create_list_from_dict(
+                            notif.details["oreVolumeByType"]
+                        )
+                    )
+                    updated = Extraction.objects.update_from_calculated(extraction)
+                    updated_count += 1 if updated else 0
+                    extraction = None
+        else:
+            if notif.notif_type == NotificationType.MOONMINING_EXTRACTION_FINISHED:
+                extraction = notif.to_calculated_extraction()
+
+    return extraction, updated_count

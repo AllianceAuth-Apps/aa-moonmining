@@ -1,5 +1,9 @@
+"""Managers."""
+
+# pylint: disable = missing-class-docstring
+
 from collections import namedtuple
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -138,16 +142,11 @@ class MoonManagerBase(models.Manager):
             # Find all groups of scans.
             if len(lines[0]) == 0 or lines[0][0] == "Moon":
                 lines = lines[1:]
-            sub_lists = []
-            for line in lines:
-                # Find the lines that start a scan
-                if line[0] == "":
-                    pass
-                else:
-                    sub_lists.append(lines.index(line))
+
+            sub_lists = MoonManagerBase._find_lines_that_start_a_scan(lines)
 
             # Separate out individual surveys
-            for i in range(len(sub_lists)):
+            for i, _obj in enumerate(sub_lists):
                 # The First List
                 if i == 0:
                     if i + 2 > len(sub_lists):
@@ -170,37 +169,32 @@ class MoonManagerBase(models.Manager):
             error_name = ""
         return surveys, error_name
 
+    @staticmethod
+    def _find_lines_that_start_a_scan(lines):
+        sub_lists = []
+        for line in lines:
+            if line[0] == "":
+                pass
+            else:
+                sub_lists.append(lines.index(line))
+        return sub_lists
+
     def _process_surveys(
         self, surveys: list, user: Optional[User]
     ) -> Tuple[List[SurveyProcessResult], bool]:
-        from .models import EveOreType, MoonProduct
+        from .models import Moon
 
         overall_success = True
-        process_results = list()
+        process_results = []
         for survey in surveys:
-            moon_name = ""
             try:
-                moon_name = survey[0][0]
-                moon_id = survey[1][6]
-                eve_moon = EveMoon.objects.get_or_create_esi(id=moon_id)[0]
-                moon = self.get_or_create(eve_moon=eve_moon)[0]
-                moon_products = list()
-                survey = survey[1:]
-                for product_data in survey:
-                    # Trim off the empty index at the front
-                    product_data = product_data[1:]
-                    ore_type = EveOreType.objects.get_or_create_esi(id=product_data[2])[
-                        0
-                    ]
-                    moon_products.append(
-                        MoonProduct(
-                            moon=moon, amount=product_data[1], ore_type=ore_type
-                        )
-                    )
+                moon: Moon = self._get_or_create_from_survey(survey)
+                moon_products = self._extract_moon_products(survey, moon)
                 moon.update_products(moon_products, updated_by=user)
                 logger.info("Added moon survey for %s", moon.name)
 
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable = broad-exception-caught
+                # FIXME: Reduce broad exception
                 logger.warning(
                     "An issue occurred while processing the following moon survey: %s",
                     survey,
@@ -208,16 +202,40 @@ class MoonManagerBase(models.Manager):
                 )
                 error_name = type(ex).__name__
                 overall_success = success = False
+                moon = None
             else:
                 success = True
                 error_name = None
 
             process_results.append(
                 SurveyProcessResult(
-                    moon_name=moon_name, success=success, error_name=error_name
+                    moon_name=moon.name if moon else "",
+                    success=success,
+                    error_name=error_name,
                 )
             )
         return process_results, overall_success
+
+    def _extract_moon_products(self, survey, moon):
+        from .models import EveOreType, MoonProduct
+
+        moon_products = []
+        survey = survey[1:]
+        for product_data in survey:
+            # Trim off the empty index at the front
+            product_data = product_data[1:]
+            ore_type = EveOreType.objects.get_or_create_esi(id=product_data[2])[0]
+            moon_products.append(
+                MoonProduct(moon=moon, amount=product_data[1], ore_type=ore_type)
+            )
+
+        return moon_products
+
+    def _get_or_create_from_survey(self, survey):
+        moon_id = survey[1][6]
+        eve_moon = EveMoon.objects.get_or_create_esi(id=moon_id)[0]
+        moon = self.get_or_create(eve_moon=eve_moon)[0]
+        return moon
 
     @staticmethod
     def _send_survey_process_report_to_user(
@@ -236,19 +254,15 @@ class MoonManagerBase(models.Manager):
                 else:
                     status = "FAILED"
                     success = False
-                    error_name = "- {}".format(process_result.error_name)
-                message += "#{}: {}: {} {}\n".format(
-                    num + 1, moon_name, status, error_name
-                )
+                    error_name = f"- {process_result.error_name}"
+                message += f"#{num + 1}: {moon_name}: {status} {error_name}\n"
         else:
             message += "\nProcessing failed"
 
+        title_detail = "OK" if success else "FAILED"
         notify(
             user=user,
-            title=_(
-                "Moon survey input processing results: %s"
-                % ("OK" if success else "FAILED")
-            ),
+            title=_(f"Moon survey input processing results: {title_detail}"),
             message=message,
             level="success" if success else "danger",
         )
@@ -298,67 +312,21 @@ class ExtractionManagerBase(models.Manager):
         """
         from .models import EveOreType, ExtractionProduct
 
-        if calculated.chunk_arrival_at:
-            try:
-                extraction = self.get(
-                    refinery_id=calculated.refinery_id,
-                    chunk_arrival_at=calculated.chunk_arrival_at,
-                )
-            except self.model.DoesNotExist:
-                logger.debug("%s: Could not find matching extraction", calculated)
-                return False
-        elif calculated.auto_fracture_at:
-            try:
-                extraction = self.get(
-                    refinery_id=calculated.refinery_id,
-                    auto_fracture_at=calculated.auto_fracture_at,
-                )
-            except self.model.DoesNotExist:
-                logger.debug("%s: Could not find matching extraction", calculated)
-                return False
-        else:
-            logger.debug(
-                "%s: Not enough data to search for matching extraction", calculated
-            )
+        try:
+            extraction = self._find_matching_extraction(calculated)
+        except self.model.DoesNotExist:
+            logger.debug("%s: Could not find matching extraction", calculated)
             return False
 
-        needs_update = False
-        if calculated.canceled_at and not extraction.canceled_at:
-            extraction.canceled_at = calculated.canceled_at
-            needs_update = True
-        if calculated.canceled_by and not extraction.canceled_by:
-            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
-                calculated.canceled_by
-            )
-            needs_update = True
-        if calculated.canceled_by and not extraction.canceled_by:
-            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
-                calculated.canceled_by
-            )
-            needs_update = True
-        if calculated.fractured_by and not extraction.fractured_by:
-            extraction.fractured_by = eve_entity_get_or_create_esi_safe(
-                calculated.fractured_by
-            )
-            needs_update = True
-        if calculated.fractured_at and not extraction.fractured_at:
-            extraction.fractured_at = calculated.fractured_at
-            needs_update = True
-        if self.model.Status.from_calculated(calculated) != extraction.status:
-            extraction.status = self.model.Status.from_calculated(calculated)
-            needs_update = True
-            status_changed = True
-        else:
-            status_changed = False
-        if calculated.started_by and not extraction.started_by:
-            extraction.started_by = eve_entity_get_or_create_esi_safe(
-                calculated.started_by
-            )
-            needs_update = True
+        needs_update, status_changed = self._calc_update_need_and_status_change(
+            calculated, extraction
+        )
+
         updated = False
         if needs_update:
             extraction.save()
             updated = True
+
         if calculated.products and (status_changed or not extraction.products.exists()):
             # preload eve ore types before transaction starts
             EveOreType.objects.bulk_get_or_create_esi(
@@ -380,6 +348,66 @@ class ExtractionManagerBase(models.Manager):
             extraction.update_calculated_properties()
             updated = True
         return updated
+
+    def _find_matching_extraction(self, calculated: CalculatedExtraction) -> Any:
+        if calculated.chunk_arrival_at:
+            return self.get(
+                refinery_id=calculated.refinery_id,
+                chunk_arrival_at=calculated.chunk_arrival_at,
+            )
+
+        if calculated.auto_fracture_at:
+            return self.get(
+                refinery_id=calculated.refinery_id,
+                auto_fracture_at=calculated.auto_fracture_at,
+            )
+
+        logger.debug(
+            "%s: Not enough data to search for matching extraction", calculated
+        )
+        raise self.model.DoesNotExist()
+
+    def _calc_update_need_and_status_change(self, calculated, extraction):
+        needs_update = False
+        if calculated.canceled_at and not extraction.canceled_at:
+            extraction.canceled_at = calculated.canceled_at
+            needs_update = True
+
+        if calculated.canceled_by and not extraction.canceled_by:
+            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
+                calculated.canceled_by
+            )
+            needs_update = True
+
+        if calculated.canceled_by and not extraction.canceled_by:
+            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
+                calculated.canceled_by
+            )
+            needs_update = True
+
+        if calculated.fractured_by and not extraction.fractured_by:
+            extraction.fractured_by = eve_entity_get_or_create_esi_safe(
+                calculated.fractured_by
+            )
+            needs_update = True
+
+        if calculated.fractured_at and not extraction.fractured_at:
+            extraction.fractured_at = calculated.fractured_at
+            needs_update = True
+
+        if self.model.Status.from_calculated(calculated) != extraction.status:
+            extraction.status = self.model.Status.from_calculated(calculated)
+            needs_update = True
+            status_changed = True
+        else:
+            status_changed = False
+
+        if calculated.started_by and not extraction.started_by:
+            extraction.started_by = eve_entity_get_or_create_esi_safe(
+                calculated.started_by
+            )
+            needs_update = True
+        return needs_update, status_changed
 
 
 ExtractionManager = ExtractionManagerBase.from_queryset(ExtractionQuerySet)

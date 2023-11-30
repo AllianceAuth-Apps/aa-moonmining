@@ -1,8 +1,0 @@
-include LICENSE
-include README.md
-include moonmining/swagger.json
-recursive-include moonmining *.py
-recursive-include moonmining/static *
-recursive-include moonmining/templates *
-recursive-include moonmining/tests *
-recursive-exclude testauth *
