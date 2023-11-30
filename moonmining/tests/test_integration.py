@@ -16,11 +16,10 @@ from app_utils.testing import (
     json_response_to_python,
 )
 
-from moonmining import views
+from moonmining import tasks, views
+from moonmining.models import Label, Moon, Owner, Refinery
 from moonmining.tests import helpers
 
-from .. import tasks
-from ..models import Label, Moon, Owner, Refinery
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.factories import (
     ExtractionFactory,

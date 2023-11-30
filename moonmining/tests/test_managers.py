@@ -9,7 +9,8 @@ from eveuniverse.models import EveMarketPrice, EveType
 
 from app_utils.testing import NoSocketsTestCase
 
-from ..models import EveOreType, Extraction, Moon, Refinery
+from moonmining.models import EveOreType, Extraction, Moon, Refinery
+
 from . import helpers
 from .testdata.factories import ExtractionFactory, OwnerFactory, RefineryFactory
 from .testdata.load_allianceauth import load_allianceauth

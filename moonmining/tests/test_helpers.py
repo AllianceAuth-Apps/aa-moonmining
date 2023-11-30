@@ -2,7 +2,8 @@ import datetime as dt
 
 from django.test import TestCase, tag
 
-from .. import helpers
+from moonmining import helpers
+
 from .testdata.factories import UserMainFactory
 
 

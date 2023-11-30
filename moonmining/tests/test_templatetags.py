@@ -2,7 +2,7 @@ import datetime as dt
 
 from django.test import TestCase
 
-from ..templatetags import moonmining
+from moonmining.templatetags import moonmining
 
 
 class TestFormatisk(TestCase):

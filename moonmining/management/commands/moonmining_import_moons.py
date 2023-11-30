@@ -11,9 +11,8 @@ from eveuniverse.models import EveMoon
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
+from moonmining import __title__, tasks
 from moonmining.models import EveOreType, Moon, MoonProduct
-
-from ... import __title__, tasks
 
 MAX_RETRIES = 3
 BULK_BATCH_SIZE = 500

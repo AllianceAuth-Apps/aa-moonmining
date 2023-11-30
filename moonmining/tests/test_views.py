@@ -18,8 +18,9 @@ from app_utils.testing import (
     json_response_to_python,
 )
 
-from .. import views
-from ..models import EveOreType, Extraction, Label, Moon, Owner
+from moonmining import views
+from moonmining.models import EveOreType, Extraction, Label, Moon, Owner
+
 from . import helpers
 from .testdata.factories import (
     EveEntityCharacterFactory,

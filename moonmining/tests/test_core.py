@@ -3,7 +3,7 @@ import datetime as dt
 from django.test import TestCase
 from django.utils.timezone import now
 
-from ..core import CalculatedExtraction, CalculatedExtractionProduct
+from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
 
 
 class TestCalculatedExtractionProduct(TestCase):
