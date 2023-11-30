@@ -472,10 +472,10 @@ class Extraction(models.Model):
             ]
         except (ObjectDoesNotExist, AttributeError):
             return None
-        else:
-            if not products_qualities:
-                return None
-            return all(products_qualities)
+
+        if not products_qualities:
+            return None
+        return all(products_qualities)
 
     def update_calculated_properties(self) -> None:
         """Update calculated properties for this extraction."""

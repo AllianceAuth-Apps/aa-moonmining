@@ -151,7 +151,7 @@ class MoonManagerBase(models.Manager):
                     sub_lists.append(lines.index(line))
 
             # Separate out individual surveys
-            for i in range(len(sub_lists)):
+            for i, _obj in enumerate(sub_lists):
                 # The First List
                 if i == 0:
                     if i + 2 > len(sub_lists):
@@ -240,19 +240,15 @@ class MoonManagerBase(models.Manager):
                 else:
                     status = "FAILED"
                     success = False
-                    error_name = "- {}".format(process_result.error_name)
-                message += "#{}: {}: {} {}\n".format(
-                    num + 1, moon_name, status, error_name
-                )
+                    error_name = f"- {process_result.error_name}"
+                message += f"#{num + 1}: {moon_name}: {status} {error_name}\n"
         else:
             message += "\nProcessing failed"
 
+        title_detail = "OK" if success else "FAILED"
         notify(
             user=user,
-            title=_(
-                "Moon survey input processing results: %s"
-                % ("OK" if success else "FAILED")
-            ),
+            title=_(f"Moon survey input processing results: {title_detail}"),
             message=message,
             level="success" if success else "danger",
         )

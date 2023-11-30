@@ -535,23 +535,29 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
             return qs.filter(**kwargs)
         return qs
 
+    # pylint: disable = too-many-return-statements
     def render_column(self, row, column) -> Union[str, dict]:
         if column == "id":
             return row.pk
+
         if column == "moon_name":
             return row.name
-        result = self._render_location(row, column)
-        if result:
+
+        if result := self._render_location(row, column):
             return result
+
         if column == "labels":
             return row.labels_html()
+
         if column == "label_name":
             return row.label.name if row.label else ""
+
         if column == "details":
             return self._render_details(row)
-        result = self._render_refinery(row, column)
-        if result:
+
+        if result := self._render_refinery(row, column):
             return result
+
         return super().render_column(row, column)
 
     def _render_location(self, row, column):
@@ -562,6 +568,7 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
             sec_class = "text-low-sec"
         else:
             sec_class = "text-null-sec"
+
         solar_system_link = format_html(
             '{}&nbsp;<span class="{}">{}</span>',
             link_html(dotlan.solar_system_url(solar_system.name), solar_system.name),
@@ -575,14 +582,19 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
         )
         if column == "solar_system_name":
             return solar_system.name
+
         if column == "solar_system_link":
             return solar_system_link
+
         if column == "location_html":
             return location_html
+
         if column == "region_name":
             return region.name
+
         if column == "constellation_name":
             return constellation.name
+
         return None
 
     def _render_details(self, row):
@@ -607,12 +619,16 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
             refinery_html = "?"
             refinery_name = ""
             corporation_name = alliance_name = ""
+
         if column == "corporation_name":
             return corporation_name
+
         if column == "alliance_name":
             return alliance_name
+
         if column == "refinery":
             return {"display": refinery_html, "sort": refinery_name}
+
         return ""
 
 
