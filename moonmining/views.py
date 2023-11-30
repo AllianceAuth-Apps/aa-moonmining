@@ -25,7 +25,7 @@ from django.db.models import (
     When,
 )
 from django.db.models.functions import Coalesce, Concat
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.html import format_html, strip_tags
@@ -449,21 +449,26 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
                 )
             )
         )
-        if category == MoonsCategory.ALL and user.has_perm("moonmining.view_all_moons"):
-            pass
-        elif (
-            category == MoonsCategory.OURS
+
+        moons_category = MoonsCategory(category)
+        if moons_category is MoonsCategory.ALL and user.has_perm(
+            "moonmining.view_all_moons"
+        ):
+            return moon_query
+
+        if (
+            moons_category is MoonsCategory.OURS
             and user.has_perm("moonmining.extractions_access")
             or user.has_perm("moonmining.view_all_moons")
         ):
-            moon_query = moon_query.filter(refinery__isnull=False)
-        elif category == MoonsCategory.UPLOADS and user.has_perm(
+            return moon_query.filter(refinery__isnull=False)
+
+        if moons_category is MoonsCategory.UPLOADS and user.has_perm(
             "moonmining.upload_moon_scan"
         ):
-            moon_query = moon_query.filter(products_updated_by=user)
-        else:
-            moon_query = Moon.objects.none()
-        return moon_query
+            return moon_query.filter(products_updated_by=user)
+
+        return Moon.objects.none()
 
     def filter_queryset(self, qs) -> models.QuerySet:
         """use parameters passed in GET request to filter queryset"""
@@ -607,7 +612,7 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
 
 @login_required
 @permission_required("moonmining.basic_access")
-def moons_fdd_data(request, category) -> JsonResponse:
+def moons_fdd_data(request: HttpRequest, category: str) -> JsonResponse:
     """Provide lists for drop down fields."""
     qs = MoonListJson.initial_queryset(category=category, user=request.user)
     columns = request.GET.get("columns")
