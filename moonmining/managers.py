@@ -3,7 +3,7 @@
 # pylint: disable = missing-class-docstring
 
 from collections import namedtuple
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -193,7 +193,8 @@ class MoonManagerBase(models.Manager):
                 moon.update_products(moon_products, updated_by=user)
                 logger.info("Added moon survey for %s", moon.name)
 
-            except Exception as ex:  # pylint: disable = broad-exception-caught FIXME
+            except Exception as ex:  # pylint: disable = broad-exception-caught
+                # FIXME: Reduce broad exception
                 logger.warning(
                     "An issue occurred while processing the following moon survey: %s",
                     survey,
@@ -311,67 +312,21 @@ class ExtractionManagerBase(models.Manager):
         """
         from .models import EveOreType, ExtractionProduct
 
-        if calculated.chunk_arrival_at:
-            try:
-                extraction = self.get(
-                    refinery_id=calculated.refinery_id,
-                    chunk_arrival_at=calculated.chunk_arrival_at,
-                )
-            except self.model.DoesNotExist:
-                logger.debug("%s: Could not find matching extraction", calculated)
-                return False
-        elif calculated.auto_fracture_at:
-            try:
-                extraction = self.get(
-                    refinery_id=calculated.refinery_id,
-                    auto_fracture_at=calculated.auto_fracture_at,
-                )
-            except self.model.DoesNotExist:
-                logger.debug("%s: Could not find matching extraction", calculated)
-                return False
-        else:
-            logger.debug(
-                "%s: Not enough data to search for matching extraction", calculated
-            )
+        try:
+            extraction = self._find_matching_extraction(calculated)
+        except self.model.DoesNotExist:
+            logger.debug("%s: Could not find matching extraction", calculated)
             return False
 
-        needs_update = False
-        if calculated.canceled_at and not extraction.canceled_at:
-            extraction.canceled_at = calculated.canceled_at
-            needs_update = True
-        if calculated.canceled_by and not extraction.canceled_by:
-            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
-                calculated.canceled_by
-            )
-            needs_update = True
-        if calculated.canceled_by and not extraction.canceled_by:
-            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
-                calculated.canceled_by
-            )
-            needs_update = True
-        if calculated.fractured_by and not extraction.fractured_by:
-            extraction.fractured_by = eve_entity_get_or_create_esi_safe(
-                calculated.fractured_by
-            )
-            needs_update = True
-        if calculated.fractured_at and not extraction.fractured_at:
-            extraction.fractured_at = calculated.fractured_at
-            needs_update = True
-        if self.model.Status.from_calculated(calculated) != extraction.status:
-            extraction.status = self.model.Status.from_calculated(calculated)
-            needs_update = True
-            status_changed = True
-        else:
-            status_changed = False
-        if calculated.started_by and not extraction.started_by:
-            extraction.started_by = eve_entity_get_or_create_esi_safe(
-                calculated.started_by
-            )
-            needs_update = True
+        needs_update, status_changed = self._calc_update_need_and_status_change(
+            calculated, extraction
+        )
+
         updated = False
         if needs_update:
             extraction.save()
             updated = True
+
         if calculated.products and (status_changed or not extraction.products.exists()):
             # preload eve ore types before transaction starts
             EveOreType.objects.bulk_get_or_create_esi(
@@ -393,6 +348,66 @@ class ExtractionManagerBase(models.Manager):
             extraction.update_calculated_properties()
             updated = True
         return updated
+
+    def _find_matching_extraction(self, calculated: CalculatedExtraction) -> Any:
+        if calculated.chunk_arrival_at:
+            return self.get(
+                refinery_id=calculated.refinery_id,
+                chunk_arrival_at=calculated.chunk_arrival_at,
+            )
+
+        if calculated.auto_fracture_at:
+            return self.get(
+                refinery_id=calculated.refinery_id,
+                auto_fracture_at=calculated.auto_fracture_at,
+            )
+
+        logger.debug(
+            "%s: Not enough data to search for matching extraction", calculated
+        )
+        raise self.model.DoesNotExist()
+
+    def _calc_update_need_and_status_change(self, calculated, extraction):
+        needs_update = False
+        if calculated.canceled_at and not extraction.canceled_at:
+            extraction.canceled_at = calculated.canceled_at
+            needs_update = True
+
+        if calculated.canceled_by and not extraction.canceled_by:
+            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
+                calculated.canceled_by
+            )
+            needs_update = True
+
+        if calculated.canceled_by and not extraction.canceled_by:
+            extraction.canceled_by = eve_entity_get_or_create_esi_safe(
+                calculated.canceled_by
+            )
+            needs_update = True
+
+        if calculated.fractured_by and not extraction.fractured_by:
+            extraction.fractured_by = eve_entity_get_or_create_esi_safe(
+                calculated.fractured_by
+            )
+            needs_update = True
+
+        if calculated.fractured_at and not extraction.fractured_at:
+            extraction.fractured_at = calculated.fractured_at
+            needs_update = True
+
+        if self.model.Status.from_calculated(calculated) != extraction.status:
+            extraction.status = self.model.Status.from_calculated(calculated)
+            needs_update = True
+            status_changed = True
+        else:
+            status_changed = False
+
+        if calculated.started_by and not extraction.started_by:
+            extraction.started_by = eve_entity_get_or_create_esi_safe(
+                calculated.started_by
+            )
+            needs_update = True
+        return needs_update, status_changed
 
 
 ExtractionManager = ExtractionManagerBase.from_queryset(ExtractionQuerySet)
