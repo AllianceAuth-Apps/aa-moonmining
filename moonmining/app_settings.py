@@ -1,3 +1,5 @@
+"""App settings."""
+
 from app_utils.app_settings import clean_setting
 
 MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE = clean_setting(

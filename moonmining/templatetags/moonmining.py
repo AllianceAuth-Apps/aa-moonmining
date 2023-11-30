@@ -1,3 +1,5 @@
+"""Template Tags."""
+
 import datetime as dt
 from typing import Optional
 

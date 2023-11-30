@@ -1,3 +1,5 @@
+"""Models."""
+
 import datetime as dt
 from collections import defaultdict
 from enum import Enum
@@ -11,7 +13,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import F, Sum, Value
 from django.db.models.functions import Coalesce
-from django.utils.functional import cached_property, classproperty
+from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -64,7 +66,7 @@ class NotificationType(str, Enum):
     def __str__(self) -> str:
         return self.value
 
-    @classproperty
+    @classmethod
     def all_moon_mining(cls) -> set:
         """Return all moon mining notifications"""
         return {
@@ -75,7 +77,7 @@ class NotificationType(str, Enum):
             cls.MOONMINING_LASER_FIRED,
         }
 
-    @classproperty
+    @classmethod
     def with_products(cls) -> set:
         """Return all notification types with have products."""
         return {
@@ -309,11 +311,11 @@ class Extraction(models.Model):
             except KeyError:
                 raise ValueError("Invalid status for notification type") from None
 
-        @classproperty
+        @classmethod
         def considered_active(cls):
             return [cls.STARTED, cls.READY]
 
-        @classproperty
+        @classmethod
         def considered_inactive(cls):
             return [cls.CANCELED, cls.COMPLETED]
 
@@ -748,12 +750,10 @@ class Moon(models.Model):
     def calc_rarity_class(self) -> Optional[OreRarityClass]:
         try:
             return max(
-                [
-                    OreRarityClass.from_eve_group_id(eve_group_id)
-                    for eve_group_id in self.products.select_related(
-                        "ore_type"
-                    ).values_list("ore_type__eve_group_id", flat=True)
-                ]
+                OreRarityClass.from_eve_group_id(eve_group_id)
+                for eve_group_id in self.products.select_related(
+                    "ore_type"
+                ).values_list("ore_type__eve_group_id", flat=True)
             )
         except (ObjectDoesNotExist, ValueError):
             return OreRarityClass.NONE
@@ -914,11 +914,9 @@ class Notification(models.Model):
         return str(self.notification_id)
 
     def __repr__(self) -> str:
-        return "%s(notification_id=%s, owner='%s', notif_type='%s')" % (
-            self.__class__.__name__,
-            self.notification_id,
-            self.owner,
-            self.notif_type,
+        return (
+            f"{self.__class__.__name__}(notification_id={self.notification_id}, "
+            f"owner='{self.owner}', notif_type='{self.notif_type}')"
         )
 
     def to_calculated_extraction(self) -> CalculatedExtraction:
@@ -947,10 +945,10 @@ class Notification(models.Model):
                     ),
                 }
             )
-        elif (
-            self.notif_type == NotificationType.MOONMINING_LASER_FIRED
-            or self.notif_type == NotificationType.MOONMINING_AUTOMATIC_FRACTURE
-        ):
+        elif self.notif_type in {
+            NotificationType.MOONMINING_LASER_FIRED,
+            NotificationType.MOONMINING_AUTOMATIC_FRACTURE,
+        }:
             params.update(
                 {
                     "fractured_by": self.details.get("firedBy"),
@@ -1052,7 +1050,7 @@ class Owner(models.Model):
         """Update all refineries from ESI."""
         logger.info("%s: Updating refineries...", self)
         refineries = self._fetch_refineries_from_esi()
-        for structure_id in refineries.keys():
+        for structure_id in refineries:
             try:
                 self._update_or_create_refinery_from_esi(structure_id)
             except OSError as exc:
@@ -1137,7 +1135,7 @@ class Owner(models.Model):
         moon_notifications = [
             notif
             for notif in all_notifications
-            if notif["type"] in NotificationType.all_moon_mining
+            if notif["type"] in NotificationType.all_moon_mining()
         ]
         return moon_notifications
 

@@ -1,3 +1,5 @@
+"""Views."""
+
 import datetime as dt
 from enum import Enum
 from typing import Union
@@ -58,11 +60,15 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class ExtractionsCategory(str, helpers.EnumToDict, Enum):
+    """A category defining which extractions to show in data view."""
+
     UPCOMING = "upcoming"
     PAST = "past"
 
 
 class MoonsCategory(str, helpers.EnumToDict, Enum):
+    """A category defining which moons to show in data view."""
+
     ALL = "all_moons"
     UPLOADS = "uploads"
     OURS = "our_moons"
@@ -270,8 +276,8 @@ def extraction_details(request, extraction_pk: int):
         context["title"] = _("Extraction")
         context["content_file"] = "moonmining/partials/extraction_details.html"
         return render(request, "moonmining/_generic_modal_page.html", context)
-    else:
-        return render(request, "moonmining/modals/extraction_details.html", context)
+
+    return render(request, "moonmining/modals/extraction_details.html", context)
 
 
 @login_required
@@ -814,7 +820,7 @@ def report_owned_value_data(request):
         )
     }
     grand_total = sum(
-        [corporation["total"] for corporation in corporation_moons.values()]
+        corporation["total"] for corporation in corporation_moons.values()
     )
     data = []
     for corporation_name, details in corporation_moons.items():

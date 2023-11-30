@@ -1,3 +1,7 @@
+"""Managers."""
+
+# pylint: disable = missing-class-docstring
+
 from collections import namedtuple
 from typing import List, Optional, Tuple
 

@@ -1,3 +1,7 @@
+"""Admin site."""
+
+# pylint: disable = missing-class-docstring, missing-function-docstring
+
 from django.contrib import admin
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
@@ -147,8 +151,10 @@ class MoonHasRefineryFilter(admin.SimpleListFilter):
         """Return the filtered queryset"""
         if self.value() == "yes":
             return queryset.filter(refinery__isnull=False)
-        elif self.value() == "no":
+
+        if self.value() == "no":
             return queryset.filter(refinery__isnull=True)
+
         return queryset
 
 
