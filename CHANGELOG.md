@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Enabled local tests to run in parallel
+- Refactoring
+- Added pylint checks to CI
 
 ## [1.9.3] - 2023-07-13
 
