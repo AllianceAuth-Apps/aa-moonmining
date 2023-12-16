@@ -32,23 +32,23 @@ from app_utils.views import (
     bootstrap_label_html,
 )
 
-from . import __title__
-from .app_settings import (
+from moonmining import __title__
+from moonmining.app_settings import (
     MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES,
     MOONMINING_REPROCESSING_YIELD,
     MOONMINING_VOLUME_PER_DAY,
     MOONMINING_VOLUME_PER_MONTH,
 )
-from .constants import EveDogmaAttributeId, EveGroupId, EveTypeId, IconSize
-from .core import CalculatedExtraction, CalculatedExtractionProduct
-from .managers import (
+from moonmining.constants import EveDogmaAttributeId, EveGroupId, EveTypeId, IconSize
+from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
+from moonmining.managers import (
     EveOreTypeManger,
     ExtractionManager,
     MiningLedgerRecordManager,
     MoonManager,
     RefineryManager,
 )
-from .providers import esi
+from moonmining.providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 # MAX_DISTANCE_TO_MOON_METERS = 3000000

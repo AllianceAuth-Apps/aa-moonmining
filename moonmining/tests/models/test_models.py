@@ -20,10 +20,9 @@ from moonmining.models import (
     OreRarityClass,
     Refinery,
 )
-
-from . import helpers
-from .testdata.esi_client_stub import esi_client_stub
-from .testdata.factories import (
+from moonmining.tests import helpers
+from moonmining.tests.testdata.esi_client_stub import esi_client_stub
+from moonmining.tests.testdata.factories import (
     CalculatedExtractionFactory,
     ExtractionFactory,
     ExtractionProductFactory,
@@ -35,10 +34,13 @@ from .testdata.factories import (
     OwnerFactory,
     RefineryFactory,
 )
-from .testdata.load_allianceauth import load_allianceauth
-from .testdata.load_eveuniverse import load_eveuniverse, nearest_celestial_stub
+from moonmining.tests.testdata.load_allianceauth import load_allianceauth
+from moonmining.tests.testdata.load_eveuniverse import (
+    load_eveuniverse,
+    nearest_celestial_stub,
+)
 
-MODELS_PATH = "moonmining.models"
+MODELS_PATH = "moonmining.models.owners"
 
 
 class TestEveOreTypeCalcRefinedValues(NoSocketsTestCase):
