@@ -100,6 +100,7 @@ class OreRarityClass(models.IntegerChoices):
 
     @property
     def bootstrap_tag_html(self) -> str:
+        """Return as bootstrap tag HTML."""
         map_rarity_to_type = {
             self.R4: BootstrapStyle.PRIMARY,
             self.R8: BootstrapStyle.INFO,
@@ -191,14 +192,17 @@ class EveOreType(EveType):
 
     @property
     def icon_url_32(self) -> str:
+        """Return icon URL with 32 pixel width."""
         return self.icon_url(32)
 
     @property
     def rarity_class(self) -> OreRarityClass:
+        """Return rarity class."""
         return OreRarityClass.from_eve_type(self)
 
     @cached_property
     def quality_class(self) -> OreQualityClass:
+        """Return quality class."""
         return OreQualityClass.from_eve_type(self)
 
     @cached_property
@@ -250,6 +254,8 @@ class EveOreTypeExtras(models.Model):
     """Extra fields for an EveOreType, e.g. for pricing calculations."""
 
     class PricingMethod(models.TextChoices):
+        """A pricing method."""
+
         UNKNOWN = "UN", _("Undefined")
         EVE_CLIENT = "EC", _("Eve client")
         REPROCESSED_MATERIALS = "RP", _("Reprocessed materials")
@@ -278,6 +284,8 @@ class Extraction(models.Model):
     """A mining extraction."""
 
     class Status(models.TextChoices):
+        """An extraction status."""
+
         STARTED = "ST", _("started")  # has been started
         CANCELED = "CN", _("canceled")  # has been canceled
         READY = "RD", _("ready")  # has finished extraction and is ready to be fractured
@@ -286,6 +294,7 @@ class Extraction(models.Model):
 
         @property
         def bootstrap_tag_html(self) -> str:
+            """Return HTML to render as bootstrap tag."""
             map_to_type = {
                 self.STARTED: BootstrapStyle.SUCCESS,
                 self.CANCELED: BootstrapStyle.DANGER,
@@ -300,6 +309,7 @@ class Extraction(models.Model):
 
         @property
         def to_notification_type(self) -> NotificationType:
+            """Return notification type."""
             map_to_type = {
                 self.STARTED: NotificationType.MOONMINING_EXTRACTION_STARTED,
                 self.CANCELED: NotificationType.MOONMINING_EXTRACTION_CANCELLED,

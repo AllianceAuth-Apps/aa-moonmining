@@ -38,6 +38,7 @@ def formatisk(value, magnitude: str = None) -> Optional[str]:
 
 @register.filter
 def datetime(value: dt.datetime) -> Optional[str]:
+    """Render as datetime if possible or return None."""
     try:
         return value.strftime(DATETIME_FORMAT)
     except AttributeError:

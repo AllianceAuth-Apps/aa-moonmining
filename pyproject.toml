@@ -77,8 +77,8 @@ disable = [
     "imported-auth-user",
     "import-outside-toplevel",
     "fixme",
-    "missing-function-docstring", # FIXME
-    "missing-class-docstring",    # FIXME
-    "too-many-lines",             # FIXME
+    # "missing-function-docstring",
+    # "missing-class-docstring",
+    "too-many-lines", # FIXME
 
 ]

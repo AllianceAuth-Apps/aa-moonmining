@@ -182,6 +182,7 @@ def _calc_extractions_qs(category: ExtractionsCategory) -> QuerySet[Extraction]:
 @login_required
 @permission_required(["moonmining.extractions_access", "moonmining.basic_access"])
 def extraction_details(request, extraction_pk: int):
+    """Render a details view for an extraction."""
     extraction = get_object_or_404(
         Extraction.objects.annotate_volume().select_related(
             "refinery",
