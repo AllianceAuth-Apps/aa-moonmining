@@ -40,7 +40,7 @@ from moonmining.tests.testdata.load_eveuniverse import (
     nearest_celestial_stub,
 )
 
-MODELS_PATH = "moonmining.models.owners"
+MODELS_PATH = "moonmining.models"
 
 
 class TestEveOreTypeCalcRefinedValues(NoSocketsTestCase):
@@ -237,8 +237,8 @@ class TestMoonUpdateValue(NoSocketsTestCase):
         super().setUpClass()
         load_eveuniverse()
 
-    @patch(MODELS_PATH + ".MOONMINING_VOLUME_PER_MONTH", 1000000)
-    @patch(MODELS_PATH + ".MOONMINING_REPROCESSING_YIELD", 0.7)
+    @patch(MODELS_PATH + ".moons.MOONMINING_VOLUME_PER_MONTH", 1000000)
+    @patch(MODELS_PATH + ".extractions.MOONMINING_REPROCESSING_YIELD", 0.7)
     def test_should_calc_correct_value(self):
         # given
         moon = MoonFactory(create_products=False)
@@ -560,7 +560,7 @@ class TestOwner(NoSocketsTestCase):
             owner.fetch_token()
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".owners.esi")
 class TestOwnerFetchNotifications(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -588,8 +588,8 @@ class TestOwnerFetchNotifications(NoSocketsTestCase):
         self.assertEqual(obj.details["structureID"], 1000000000001)
 
 
-@patch(MODELS_PATH + ".esi")
-@patch(MODELS_PATH + ".notify_admins_throttled", lambda *args, **kwargs: None)
+@patch(MODELS_PATH + ".owners.esi")
+@patch(MODELS_PATH + ".owners.notify_admins_throttled", lambda *args, **kwargs: None)
 class TestOwnerUpdateRefineries(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -599,7 +599,8 @@ class TestOwnerUpdateRefineries(NoSocketsTestCase):
         cls.owner = OwnerFactory()
 
     @patch(
-        MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub
+        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
+        new=nearest_celestial_stub,
     )
     def test_should_create_new_refineries_from_scratch(self, mock_esi):
         # given
@@ -613,7 +614,7 @@ class TestOwnerUpdateRefineries(NoSocketsTestCase):
         self.assertEqual(refinery.name, "Auga - Paradise Alpha")
         self.assertEqual(refinery.moon.eve_moon, my_eve_moon)
 
-    @patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial")
+    @patch(MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial")
     def test_should_handle_OSError_exceptions_from_nearest_celestial(
         self, mock_nearest_celestial, mock_esi
     ):
@@ -629,7 +630,8 @@ class TestOwnerUpdateRefineries(NoSocketsTestCase):
         self.assertEqual(mock_nearest_celestial.call_count, 2)
 
     @patch(
-        MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub
+        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
+        new=nearest_celestial_stub,
     )
     def test_should_remove_refineries_that_no_longer_exist(self, mock_esi):
         # given
@@ -641,7 +643,8 @@ class TestOwnerUpdateRefineries(NoSocketsTestCase):
         self.assertSetEqual(Refinery.objects.ids(), {1000000000001, 1000000000002})
 
     @patch(
-        MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub
+        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
+        new=nearest_celestial_stub,
     )
     def test_should_not_remove_refineries_after_OSError_in_corporation_structures(
         self, mock_esi
@@ -658,7 +661,8 @@ class TestOwnerUpdateRefineries(NoSocketsTestCase):
         self.assertSetEqual(Refinery.objects.ids(), {1990000000001})
 
     @patch(
-        MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub
+        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
+        new=nearest_celestial_stub,
     )
     def test_should_continue_with_other_refineries_after_OS_error(self, mock_esi):
         def my_get_corporations_corporation_id_structures(*args, **kwargs):
@@ -692,7 +696,7 @@ class TestOwnerUpdateRefineries(NoSocketsTestCase):
         self.assertSetEqual(Refinery.objects.ids(), {1000000000001, 1000000000002})
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".owners.esi")
 class TestOwnerUpdateExtractions(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -731,7 +735,7 @@ class TestOwnerUpdateExtractions(NoSocketsTestCase):
         self.assertIsNotNone(extraction.is_jackpot)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".owners.esi")
 class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -746,7 +750,7 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
         refinery = RefineryFactory(id=1000000000001, owner=self.owner)
         # when
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".owners.now") as mock_now:
             mock_now.return_value = dt.datetime(2021, 4, 5, 12, 0, 0, tzinfo=pytz.UTC)
             self.owner.update_extractions_from_esi()
         # then
@@ -773,7 +777,7 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
         refinery = RefineryFactory(id=1000000000001, owner=self.owner)
         # when
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".owners.now") as mock_now:
             mock_now.return_value = dt.datetime(2021, 4, 18, 18, 15, 0, tzinfo=pytz.UTC)
             self.owner.update_extractions_from_esi()
         # then
@@ -794,7 +798,7 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
             create_products=False,
         )
         # when
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".owners.now") as mock_now:
             mock_now.return_value = dt.datetime(2021, 4, 1, 12, 0, tzinfo=pytz.UTC)
             self.owner.update_extractions_from_esi()
         # then
@@ -803,7 +807,7 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         self.assertTrue(started_extraction.canceled_at)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".owners.esi")
 class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -1113,7 +1117,7 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         # then
         self.assertEqual(moon.products.count(), 3)
 
-    @patch(MODELS_PATH + ".MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", False)
+    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", False)
     def test_should_not_update_moon_products_when_survey_exists(self, mock_esi):
         # given
         mock_esi.client = esi_client_stub
@@ -1133,7 +1137,7 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         # then
         self.assertEqual(moon.products.count(), 2)
 
-    @patch(MODELS_PATH + ".MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", True)
+    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", True)
     def test_should_update_moon_products_when_survey_exists_alternate(self, mock_esi):
         # given
         mock_esi.client = esi_client_stub
@@ -1154,7 +1158,7 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         self.assertEqual(moon.products.count(), 3)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".owners.esi")
 class TestOwnerUpdateMiningLedger(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
