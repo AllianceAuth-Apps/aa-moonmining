@@ -30,6 +30,7 @@ def _previous_month(obj: dt.datetime) -> dt.datetime:
 @login_required()
 @permission_required(["moonmining.basic_access", "moonmining.reports_access"])
 def reports(request):
+    """Render reports view."""
     month_minus_1 = _previous_month(now())
     month_minus_2 = _previous_month(month_minus_1)
     month_minus_3 = _previous_month(month_minus_2)
@@ -86,6 +87,7 @@ def _default_if_none(value, default):
 @login_required()
 @permission_required(["moonmining.basic_access", "moonmining.reports_access"])
 def report_owned_value_data(request):
+    """Render data view for owner value report."""
     moon_query = Moon.objects.select_related(
         "eve_moon",
         "eve_moon__eve_planet__eve_solar_system",
@@ -165,6 +167,7 @@ def _default_if_false(value, default):
 @login_required()
 @permission_required(["moonmining.basic_access", "moonmining.reports_access"])
 def report_user_mining_data(request):
+    """Render data view for user mining report."""
     sum_volume = ExpressionWrapper(
         F("mining_ledger__quantity") * F("mining_ledger__ore_type__volume"),
         output_field=FloatField(),
@@ -297,6 +300,7 @@ def report_user_mining_data(request):
 @login_required()
 @permission_required(["moonmining.basic_access", "moonmining.reports_access"])
 def report_user_uploaded_data(request) -> JsonResponse:
+    """Render data view for user upload report."""
     data = list(
         Moon.objects.values(
             name=F("products_updated_by__profile__main_character__character_name"),
@@ -319,6 +323,7 @@ def report_user_uploaded_data(request) -> JsonResponse:
 @login_required()
 @permission_required(["moonmining.basic_access", "moonmining.reports_access"])
 def report_ore_prices_data(request) -> JsonResponse:
+    """Render data view for ore prices report."""
     moon_ore_group_ids = [
         EveGroupId.UNCOMMON_MOON_ASTEROIDS,
         EveGroupId.UBIQUITOUS_MOON_ASTEROIDS,

@@ -3,14 +3,16 @@
 
 from enum import IntEnum
 
-# EVE IDs
-
 
 class EveCategoryId(IntEnum):
+    """An Eve category ID."""
+
     ASTEROID = 25
 
 
 class EveGroupId(IntEnum):
+    """An Eve group ID."""
+
     MOON = 8
     MINERAL = 18
     REFINERY = 1406
@@ -22,6 +24,8 @@ class EveGroupId(IntEnum):
 
 
 class EveTypeId(IntEnum):
+    """An Eve type ID."""
+
     ATHANOR = 35835
     CHROMITE = 45501
     EUXENITE = 45495
@@ -39,6 +43,8 @@ class EveTypeId(IntEnum):
 
 
 class EveDogmaAttributeId(IntEnum):
+    """An Eve dogma attribute ID."""
+
     ORE_QUALITY = 2699
 
 
@@ -48,5 +54,7 @@ VALUE_DIVIDER = 1_000_000_000
 
 
 class IconSize(IntEnum):
+    """Icon sizes."""
+
     SMALL = 32
     MEDIUM = 64

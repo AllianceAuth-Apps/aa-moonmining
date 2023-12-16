@@ -94,6 +94,7 @@ class MiningLedgerRecordManager(models.Manager):
 
 class MoonQuerySet(models.QuerySet):
     def selected_related_defaults(self) -> models.QuerySet:
+        """Apply default select_related."""
         return self.select_related(
             "eve_moon",
             "eve_moon__eve_planet__eve_solar_system",
@@ -274,6 +275,7 @@ MoonManager = MoonManagerBase.from_queryset(MoonQuerySet)
 
 class ExtractionQuerySet(models.QuerySet):
     def selected_related_defaults(self) -> models.QuerySet:
+        """Apply default select related."""
         return self.select_related(
             "refinery",
             "refinery__moon",
@@ -415,4 +417,5 @@ ExtractionManager = ExtractionManagerBase.from_queryset(ExtractionQuerySet)
 
 class RefineryManager(models.Manager):
     def ids(self) -> set:
+        """Return IDs of this queryset."""
         return set(self.values_list("id", flat=True))

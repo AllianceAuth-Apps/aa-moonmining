@@ -4,7 +4,6 @@ import datetime as dt
 from collections import defaultdict
 from typing import List
 
-from django.http import HttpResponse
 from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import User
@@ -20,10 +19,6 @@ class EnumToDict:
     def to_dict(cls) -> dict:
         """Convert this enum to dict."""
         return {k: elem.value for k, elem in cls.__members__.items()}
-
-
-class HttpResponseUnauthorized(HttpResponse):
-    status_code = 401
 
 
 # pylint: disable = redefined-builtin

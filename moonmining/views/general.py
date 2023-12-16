@@ -22,6 +22,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 @login_required
 @permission_required("moonmining.basic_access")
 def index(request):
+    """Render an index view."""
     if request.user.has_perm("moonmining.extractions_access"):
         return redirect("moonmining:extractions")
     return redirect("moonmining:moons")
@@ -31,6 +32,7 @@ def index(request):
 @token_required(scopes=Owner.esi_scopes())  # type: ignore
 @login_required
 def add_owner(request, token):
+    """Render view to add an owner."""
     character_ownership = get_object_or_404(
         request.user.character_ownerships.select_related("character"),
         character__character_id=token.character_id,

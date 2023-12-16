@@ -33,7 +33,7 @@ from .testdata.load_eveuniverse import load_eveuniverse, nearest_celestial_stub
 from .testdata.survey_data import fetch_survey_data
 
 MANAGERS_PATH = "moonmining.managers"
-MODELS_PATH = "moonmining.models"
+MODELS_PATH = "moonmining.models.owners"
 TASKS_PATH = "moonmining.tasks"
 VIEWS_PATH = "moonmining.views.views_all"
 

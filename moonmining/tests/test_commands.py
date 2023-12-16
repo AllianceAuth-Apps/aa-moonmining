@@ -13,7 +13,7 @@ from moonmining.models import Moon
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 
-MODELS_PATH = "moonmining.models"
+MODELS_PATH = "moonmining.models.owners"
 PACKAGE_PATH = "moonmining.management.commands"
 
 

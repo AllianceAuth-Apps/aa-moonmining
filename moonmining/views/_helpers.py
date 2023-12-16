@@ -9,6 +9,7 @@ from moonmining.models import Moon
 
 
 def moon_details_button_html(moon: Moon) -> str:
+    """Return HTML to render a moon details button."""
     return fontawesome_modal_button_html(
         modal_id="modalMoonDetails",
         fa_code="fas fa-moon",
