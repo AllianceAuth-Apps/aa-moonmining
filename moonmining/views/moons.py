@@ -43,6 +43,8 @@ class MoonsCategory(str, helpers.EnumToDict, Enum):
 
 # pylint: disable = too-many-ancestors
 class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableView):
+    """A datatable view for rendering a moons list."""
+
     model = Moon
     permission_required = "moonmining.basic_access"
     columns = [
@@ -99,6 +101,7 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
 
     @classmethod
     def initial_queryset(cls, category: str, user: User) -> models.QuerySet:
+        """Return initial queryset."""
         current_extraction_qs = Extraction.objects.filter(
             refinery__moon=OuterRef("pk"),
             status__in=[Extraction.Status.STARTED, Extraction.Status.READY],
@@ -376,6 +379,7 @@ def _calc_options(request, qs, column):
 @login_required()
 @permission_required("moonmining.basic_access")
 def moons(request):
+    """Render moons page."""
     user_perms = user_perms_lookup(
         request.user, ["moonmining.extractions_access", "moonmining.view_all_moons"]
     )
@@ -393,6 +397,7 @@ def moons(request):
 @login_required
 @permission_required("moonmining.basic_access")
 def moon_details(request, moon_pk: int):
+    """Render moon details page."""
     moon = get_object_or_404(Moon.objects.selected_related_defaults(), pk=moon_pk)
     context = {
         "page_title": moon.name,
@@ -411,6 +416,7 @@ def moon_details(request, moon_pk: int):
 @permission_required(["moonmining.basic_access", "moonmining.upload_moon_scan"])
 @login_required()
 def upload_survey(request):
+    """Render upload survey page."""
     context = {"page_title": _("Upload Moon Surveys")}
     if request.method == "POST":
         form = MoonScanForm(request.POST)

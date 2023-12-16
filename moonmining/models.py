@@ -18,7 +18,7 @@ from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
-from eveuniverse.models import EveEntity, EveMoon, EveSolarSystem, EveType
+from eveuniverse.models import EveEntity, EveMoon, EveRegion, EveSolarSystem, EveType
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCorporationInfo
@@ -323,14 +323,17 @@ class Extraction(models.Model):
 
         @classmethod
         def considered_active(cls):
+            """Return enums considered active."""
             return [cls.STARTED, cls.READY]
 
         @classmethod
         def considered_inactive(cls):
+            """Return enums considered inactive."""
             return [cls.CANCELED, cls.COMPLETED]
 
         @classmethod
-        def from_calculated(cls, calculated):
+        def from_calculated(cls, calculated: CalculatedExtraction):
+            """Create new eum from calculated status."""
             map_from_calculated = {
                 CalculatedExtraction.Status.STARTED: cls.STARTED,
                 CalculatedExtraction.Status.CANCELED: cls.CANCELED,
@@ -572,6 +575,8 @@ class Label(models.Model):
     """A custom label for structuring moons."""
 
     class Style(models.TextChoices):
+        """A label style."""
+
         DARK_BLUE = "primary", _("dark blue")
         GREEN = "success", _("green")
         GREY = "default", _("grey")
@@ -581,6 +586,7 @@ class Label(models.Model):
 
         @property
         def bootstrap_style(self) -> str:
+            """Return HTML to render a bootstrap tag."""
             map_to_type = {
                 self.DARK_BLUE: BootstrapStyle.PRIMARY,
                 self.GREEN: BootstrapStyle.SUCCESS,
@@ -606,6 +612,7 @@ class Label(models.Model):
 
     @property
     def tag_html(self) -> str:
+        """Return tag HTML for this obj."""
         label_style = self.Style(self.style).bootstrap_style
         return bootstrap_label_html(self.name, label=label_style)
 
@@ -721,20 +728,25 @@ class Moon(models.Model):
 
     @property
     def name(self) -> str:
+        """Return name of this moon."""
         return self.eve_moon.name.replace("Moon ", "")
 
-    def region(self) -> str:
+    def region(self) -> EveRegion:
+        """Return region."""
         return self.solar_system().eve_constellation.eve_region
 
-    def solar_system(self) -> str:
+    def solar_system(self) -> EveSolarSystem:
+        """Return solar system."""
         return self.eve_moon.eve_planet.eve_solar_system
 
     @property
     def is_owned(self) -> bool:
+        """Return True when this moon has a known owner, else False."""
         return hasattr(self, "refinery")
 
     @property
     def rarity_tag_html(self) -> str:
+        """Return rarity tag HTML for this moon."""
         return OreRarityClass(self.rarity_class).bootstrap_tag_html
 
     def labels_html(self) -> str:
@@ -758,6 +770,7 @@ class Moon(models.Model):
             return type(self).objects.none()
 
     def calc_rarity_class(self) -> Optional[OreRarityClass]:
+        """Return rarity class of this moon."""
         try:
             return max(
                 OreRarityClass.from_eve_group_id(eve_group_id)
@@ -833,16 +846,19 @@ class Moon(models.Model):
     def update_products_from_latest_extraction(
         self, overwrite_survey: bool = False
     ) -> Optional[bool]:
+        """Update products from latest extractions and return if successful."""
         try:
             extraction = self.refinery.extractions.order_by("-started_at").first()
         except ObjectDoesNotExist:
             return None
+
         if not extraction:
             return None
-        calculated_extraction = extraction.to_calculated_extraction()
-        return self.update_products_from_calculated_extraction(
-            calculated_extraction, overwrite_survey=overwrite_survey
+
+        success = self.update_products_from_calculated_extraction(
+            extraction.to_calculated_extraction(), overwrite_survey=overwrite_survey
         )
+        return success
 
 
 class MoonProduct(models.Model):
@@ -1019,6 +1035,7 @@ class Owner(models.Model):
 
     @property
     def name(self) -> str:
+        """Return name."""
         alliance_ticker_str = (
             f" [{self.corporation.alliance.alliance_ticker}]"
             if self.corporation.alliance
@@ -1028,12 +1045,14 @@ class Owner(models.Model):
 
     @property
     def alliance_name(self) -> str:
+        """Return alliance name."""
         return (
             self.corporation.alliance.alliance_name if self.corporation.alliance else ""
         )
 
     @property
     def name_html(self):
+        """Return name as HTML."""
         return bootstrap_icon_plus_name_html(
             self.corporation.logo_url(size=IconSize.SMALL),
             self.name,
@@ -1205,6 +1224,7 @@ class Owner(models.Model):
         return len(new_notification_objects)
 
     def update_extractions(self):
+        """Update extractions fro ESI."""
         self.update_extractions_from_esi()
         Extraction.objects.all().update_status()
         self.update_extractions_from_notifications()
@@ -1257,6 +1277,7 @@ class Owner(models.Model):
             _update_extractions_for_refinery(self, refinery)
 
     def fetch_mining_ledger_observers_from_esi(self) -> set:
+        """Fetch mining ledger observers from ESI and return them."""
         logger.info("%s: Fetching mining observers from ESI...", self)
         observers = esi.client.Industry.get_corporation_corporation_id_mining_observers(
             corporation_id=self.corporation.corporation_id,
@@ -1322,6 +1343,7 @@ class Refinery(models.Model):
         return self.name
 
     def name_html(self) -> str:
+        """Return name as HTML."""
         return format_html("{}<br>{}", self.name, self.owner.name)
 
     def update_moon_from_structure_info(self, structure_info: dict) -> bool:
@@ -1350,12 +1372,14 @@ class Refinery(models.Model):
         return True
 
     def update_moon_from_eve_id(self, eve_moon_id: int):
+        """Update moon from ESI."""
         eve_moon, _ = EveMoon.objects.get_or_create_esi(id=eve_moon_id)
         moon, _ = Moon.objects.get_or_create(eve_moon=eve_moon)
         self.moon = moon
         self.save()
 
     def update_mining_ledger_from_esi(self):
+        """Update mining ledger from ESI."""
         logger.debug("%s: Fetching mining observer records from ESI...", self)
         self.ledger_last_update_at = now()
         self.ledger_last_update_ok = None
@@ -1400,6 +1424,7 @@ class Refinery(models.Model):
         self.save()
 
     def create_extractions_from_esi_response(self, esi_extractions: List[dict]) -> int:
+        """Create extractions from an ESI repose and return number of created objs."""
         existing_extractions = set(
             self.extractions.values_list("started_at", flat=True)
         )

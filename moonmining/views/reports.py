@@ -30,6 +30,7 @@ def _previous_month(obj: dt.datetime) -> dt.datetime:
 @login_required()
 @permission_required(["moonmining.basic_access", "moonmining.reports_access"])
 def reports(request):
+    """Render reports view."""
     month_minus_1 = _previous_month(now())
     month_minus_2 = _previous_month(month_minus_1)
     month_minus_3 = _previous_month(month_minus_2)

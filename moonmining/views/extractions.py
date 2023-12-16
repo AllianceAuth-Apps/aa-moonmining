@@ -46,6 +46,7 @@ class ExtractionsCategory(str, helpers.EnumToDict, Enum):
 @login_required
 @permission_required(["moonmining.extractions_access", "moonmining.basic_access"])
 def extractions(request):
+    """Render extractions page."""
     context = {
         "page_title": _("Extractions"),
         "ExtractionsCategory": ExtractionsCategory.to_dict(),
@@ -59,26 +60,31 @@ def extractions(request):
 
 
 def extraction_ledger_button_html(extraction: Extraction) -> str:
-    return fontawesome_modal_button_html(
+    """Return HTML to render extraction ledger button."""
+    new_var = fontawesome_modal_button_html(
         modal_id="modalExtractionLedger",
         fa_code="fas fa-table",
         ajax_url=reverse("moonmining:extraction_ledger", args=[extraction.pk]),
         tooltip="Extraction ledger",
     )
+    return new_var
 
 
 def extraction_details_button_html(extraction_pk: int) -> str:
-    return fontawesome_modal_button_html(
+    """Return HTML to render extraction details button."""
+    html = fontawesome_modal_button_html(
         modal_id="modalExtractionDetails",
         fa_code="fas fa-hammer",
         ajax_url=reverse("moonmining:extraction_details", args=[extraction_pk]),
         tooltip=_("Extraction details"),
     )
+    return html
 
 
 @login_required
 @permission_required(["moonmining.extractions_access", "moonmining.basic_access"])
 def extractions_data(request: HttpRequest, category: str):
+    """Render extraction data."""
     data = []
     can_see_ledger = request.user.has_perm("moonmining.view_moon_ledgers")
     extractions_qs = _calc_extractions_qs(ExtractionsCategory(category))
@@ -220,6 +226,7 @@ def extraction_details(request, extraction_pk: int):
     ]
 )
 def extraction_ledger(request, extraction_pk: int):
+    """Render extraction ledger page."""
     extraction = get_object_or_404(
         Extraction.objects.all().select_related(
             "refinery",
