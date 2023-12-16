@@ -1,3 +1,5 @@
+"""General models."""
+
 from django.db import models
 
 

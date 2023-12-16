@@ -1,3 +1,5 @@
+"""Moon models."""
+
 from typing import List, Optional
 
 from django.contrib.auth.models import User
@@ -143,7 +145,7 @@ class Moon(models.Model):
         return format_html(" ".join(tags))
 
     def products_sorted(self) -> models.QuerySet:
-        """Return current products as sorted iterable."""
+        """Return current products."""
         try:
             return (
                 self.products.select_related(

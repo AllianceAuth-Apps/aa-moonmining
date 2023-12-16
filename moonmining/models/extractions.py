@@ -1,3 +1,5 @@
+"""Extraction models."""
+
 import datetime as dt
 from typing import Iterable, Optional
 
@@ -214,8 +216,8 @@ class Extraction(models.Model):
         """Return current status as enum type."""
         return self.Status(self.status)
 
-    def products_sorted(self):
-        """Return current products as sorted iterable."""
+    def products_sorted(self) -> models.QuerySet:
+        """Return current products."""
         try:
             return (
                 self.products.select_related(
