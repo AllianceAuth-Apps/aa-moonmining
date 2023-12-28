@@ -163,16 +163,21 @@ class TestUpdateTasks(NoSocketsTestCase):
         self.assertEqual(refinery_2.mining_ledger.count(), 1)
         self.assertEqual(refinery_11.mining_ledger.count(), 1)
 
-    @patch(TASKS_PATH + ".EveMarketPrice.objects.update_from_esi")
-    def test_should_update_all_calculated_values(self, mock_update_prices):
+    @patch(TASKS_PATH + ".update_unresolved_eve_entities", spec=True)
+    @patch(TASKS_PATH + ".EveMarketPrice.objects.update_from_esi", spec=True)
+    def test_should_update_all_calculated_values(
+        self, mock_update_prices, mock_eve_entities_task
+    ):
         # given
         mock_update_prices.return_value = None
         moon = MoonFactory()
         owner = OwnerFactory(character_ownership=self.character_ownership)
         refinery = RefineryFactory(moon=moon, owner=owner)
         extraction = ExtractionFactory(refinery=refinery)
+
         # when
         tasks.run_calculated_properties_update.delay()
+
         # then
         moon.refresh_from_db()
         extraction.refresh_from_db()
@@ -180,6 +185,7 @@ class TestUpdateTasks(NoSocketsTestCase):
         self.assertIsNotNone(extraction.value)
         ore = extraction.products.first().ore_type
         self.assertIsNotNone(ore.extras.current_price)
+        self.assertTrue(mock_eve_entities_task.si.called)
 
 
 class TestProcessSurveyInput(TestCase):
