@@ -466,22 +466,37 @@ class Refinery(models.Model):
 
     def update_mining_ledger_from_esi(self):
         """Update mining ledger from ESI."""
-        logger.debug("%s: Fetching mining observer records from ESI...", self)
+        self._reset_update_status()
+        records = self._fetch_ledger_from_esi()
+        self._preload_missing_ore_types(records)
+        self._store_ledger(records)
+        self._record_successful_update()
+
+    def _reset_update_status(self):
         self.ledger_last_update_at = now()
         self.ledger_last_update_ok = None
         self.save()
+
+    def _fetch_ledger_from_esi(self):
+        logger.debug("%s: Fetching mining observer records from ESI...", self)
+        token = self.owner.fetch_token().valid_access_token()
         records = esi.client.Industry.get_corporation_corporation_id_mining_observers_observer_id(
             corporation_id=self.owner.corporation.corporation_id,
             observer_id=self.id,
-            token=self.owner.fetch_token().valid_access_token(),
+            token=token,
         ).results()
         logger.info(
             "%s: Received %d mining observer records from ESI", self, len(records)
         )
-        # preload all missing ore types
+
+        return records
+
+    def _preload_missing_ore_types(self, records):
         EveOreType.objects.bulk_get_or_create_esi(
             ids=[record["type_id"] for record in records]
         )
+
+    def _store_ledger(self, records):
         character_2_user = {
             obj[0]: obj[1]
             for obj in CharacterOwnership.objects.values_list(
@@ -489,11 +504,14 @@ class Refinery(models.Model):
                 "user_id",
             )
         }
+        entity_ids = set()
         for record in records:
             character, _ = EveEntity.objects.get_or_create(id=record["character_id"])
             corporation, _ = EveEntity.objects.get_or_create(
                 id=record["recorded_corporation_id"]
             )
+            entity_ids.add(character.id)
+            entity_ids.add(corporation.id)
             MiningLedgerRecord.objects.update_or_create(
                 refinery=self,
                 character=character,
@@ -505,7 +523,18 @@ class Refinery(models.Model):
                     "user_id": character_2_user.get(character.id),
                 },
             )
-        EveEntity.objects.bulk_update_new_esi()
+
+        try:
+            EveEntity.objects.bulk_resolve_ids(entity_ids)
+        except OSError:
+            logger.warning(
+                "%s: Failed to resolve entity IDs for mining ledger: %s",
+                self,
+                entity_ids,
+                exc_info=True,
+            )
+
+    def _record_successful_update(self):
         self.ledger_last_update_ok = True
         self.save()
 
