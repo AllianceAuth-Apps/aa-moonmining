@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.11.1] - 2023-12-27
+
+### Fix
+
+- Now resolved own EveEntity IDs only when fetching mining ledgers, instead of trying to resolve all unknown EveEntities. This prevents ledger updates from failing, when other apps generate invalid IDs.
+
 ## [1.11.0] - 2023-12-18
 
 ### Changed

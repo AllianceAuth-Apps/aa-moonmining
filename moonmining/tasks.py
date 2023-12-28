@@ -5,6 +5,7 @@ from celery import chain, shared_task
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 from eveuniverse.models import EveMarketPrice
+from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.esi import fetch_esi_status
@@ -121,6 +122,7 @@ def run_calculated_properties_update():
             update_current_ore_prices.si().set(priority=TASK_PRIORITY_LOWER),
             update_moons.si().set(priority=TASK_PRIORITY_LOWER),
             update_extractions.si().set(priority=TASK_PRIORITY_LOWER),
+            update_unresolved_eve_entities.si().set(priority=TASK_PRIORITY_LOWER),
         ).delay()
     else:
         logger.warning("ESI ist not available. Aborting.")
