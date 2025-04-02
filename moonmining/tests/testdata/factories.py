@@ -1,6 +1,6 @@
 import datetime as dt
 import random
-from typing import List
+from typing import Generic, List, TypeVar
 
 import factory
 import factory.fuzzy
@@ -33,6 +33,8 @@ from moonmining.models import (
     Refinery,
 )
 
+T = TypeVar("T")
+
 FUZZY_START_YEAR = 2008
 
 
@@ -42,6 +44,11 @@ def datetime_to_ldap(my_dt: dt.datetime) -> int:
         ((my_dt - dt.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds())
         + 11644473600
     ) * 10000000
+
+
+class BaseMetaFactory(Generic[T], factory.base.FactoryMetaClass):
+    def __call__(cls, *args, **kwargs) -> T:
+        return super().__call__(*args, **kwargs)
 
 
 # Auth
@@ -69,7 +76,9 @@ class DefaultOwnerUserMainFactory(UserMainFactory):
 # eveuniverse
 
 
-class EveEntityFactory(factory.django.DjangoModelFactory):
+class EveEntityFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[EveEntity]
+):
     class Meta:
         model = EveEntity
         django_get_or_create = ("id", "name")
@@ -157,7 +166,9 @@ class CalculatedExtractionFactory(factory.Factory):
         return _generate_calculated_extraction_products(self)
 
 
-class MiningLedgerRecordFactory(factory.django.DjangoModelFactory):
+class MiningLedgerRecordFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[MiningLedgerRecord]
+):
     class Meta:
         model = MiningLedgerRecord
 
@@ -168,7 +179,7 @@ class MiningLedgerRecordFactory(factory.django.DjangoModelFactory):
     quantity = factory.fuzzy.FuzzyInteger(10000)
 
 
-class MoonFactory(factory.django.DjangoModelFactory):
+class MoonFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Moon]):
     class Meta:
         model = Moon
         exclude = ("create_products",)
@@ -196,12 +207,14 @@ class MoonFactory(factory.django.DjangoModelFactory):
         obj.update_calculated_properties()
 
 
-class MoonProductFactory(factory.django.DjangoModelFactory):
+class MoonProductFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[MoonProduct]
+):
     class Meta:
         model = MoonProduct
 
 
-class OwnerFactory(factory.django.DjangoModelFactory):
+class OwnerFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Owner]):
     class Meta:
         model = Owner
 
@@ -232,7 +245,9 @@ class OwnerFactory(factory.django.DjangoModelFactory):
         return EveCorporationInfo.objects.get(corporation_id=corporation_id)
 
 
-class RefineryFactory(factory.django.DjangoModelFactory):
+class RefineryFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Refinery]
+):
     class Meta:
         model = Refinery
 
@@ -246,7 +261,9 @@ class RefineryFactory(factory.django.DjangoModelFactory):
         return EveType.objects.get(id=EveTypeId.ATHANOR)
 
 
-class ExtractionFactory(factory.django.DjangoModelFactory):
+class ExtractionFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Extraction]
+):
     class Meta:
         model = Extraction
 
@@ -267,6 +284,8 @@ class ExtractionFactory(factory.django.DjangoModelFactory):
         """Set this param to False to disable."""
         if not create or extracted is False:
             return
+        if not obj.refinery.moon:
+            return
         for product in obj.refinery.moon.products.all():
             ExtractionProductFactory(
                 extraction=obj,
@@ -278,12 +297,16 @@ class ExtractionFactory(factory.django.DjangoModelFactory):
         obj.update_calculated_properties()
 
 
-class ExtractionProductFactory(factory.django.DjangoModelFactory):
+class ExtractionProductFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[ExtractionProduct]
+):
     class Meta:
         model = ExtractionProduct
 
 
-class NotificationFactory(factory.django.DjangoModelFactory):
+class NotificationFactory(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Notification]
+):
     """Create notifications from Extraction objects."""
 
     class Meta:
@@ -378,7 +401,9 @@ class NotificationFactory(factory.django.DjangoModelFactory):
         return data
 
 
-class NotificationFactory2(factory.django.DjangoModelFactory):
+class NotificationFactory2(
+    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Notification]
+):
     """Create notifications from CalculatedExtraction objects."""
 
     class Meta:
