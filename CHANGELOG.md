@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.11.2] - 2025-04-02
+
+### Fix
+
+- Extractions page crashes when there are extractions for refineries without a moon (Thanks to voodookv for reporting this)
+
 ## [1.11.1] - 2023-12-27
 
 ### Fix

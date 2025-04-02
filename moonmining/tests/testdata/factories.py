@@ -284,6 +284,8 @@ class ExtractionFactory(
         """Set this param to False to disable."""
         if not create or extracted is False:
             return
+        if not obj.refinery.moon:
+            return
         for product in obj.refinery.moon.products.all():
             ExtractionProductFactory(
                 extraction=obj,

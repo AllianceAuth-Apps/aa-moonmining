@@ -162,7 +162,8 @@ def _calc_extractions_qs(category: ExtractionsCategory) -> QuerySet[Extraction]:
         hours=MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE
     )
     extractions_qs = (
-        Extraction.objects.annotate_volume()
+        Extraction.objects.exclude(refinery__moon__isnull=True)
+        .annotate_volume()
         .selected_related_defaults()
         .select_related(
             "refinery__moon__eve_moon__eve_planet__eve_solar_system",
