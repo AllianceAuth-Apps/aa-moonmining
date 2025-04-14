@@ -3,16 +3,16 @@
 {% include 'moonmining/partials/extraction_ledger_head.html' %}
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation" class="active"><a href="#ledger" aria-controls="ledger" role="tab" data-toggle="tab">
+    <li role="presentation" class="active"><a href="#ledger" aria-controls="ledger" role="tab" data-bs-toggle="tab">
         {% translate 'Ledger' %}
     </a></li>
-    <li role="presentation"><a href="#characters" aria-controls="characters" role="tab" data-toggle="tab">
+    <li class="nav-item" role="presentation"><a href="#characters" aria-controls="characters" role="tab" data-bs-toggle="tab">
         {% translate 'Totals by character' %}
     </a></li>
 </ul>
 <!-- Tab panes -->
-<div class="panel panel-default panel-tabs">
-    <div class="panel-body">
+<div class="card card-default card-tabs">
+    <div class="card-body">
         <div class="tab-content">
             <div role="tabpanel" class="tab-pane active" id="ledger">
                 {% include 'moonmining/partials/extraction_ledger_ledger.html' %}
@@ -49,6 +49,7 @@
                     }
                 ],
                 bootstrap: true,
+                bootstrap_version: 5,
                 autoSize: false
             }
         });
@@ -69,6 +70,7 @@
                     }
                 ],
                 bootstrap: true,
+                bootstrap_version: 5,
                 autoSize: false
             }
         });

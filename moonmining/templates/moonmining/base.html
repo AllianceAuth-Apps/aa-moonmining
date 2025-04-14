@@ -1,25 +1,67 @@
-{% extends 'allianceauth/base.html' %}
+{% extends 'allianceauth/base-bs5.html' %}
 {% load static %}
 {% load i18n %}
+{% load navactive %}
 
 {% block page_title %}{{ page_title }} - {% translate 'Moon Mining' %}{% endblock %}
 
+{% block header_nav_brand %}{% translate "Moon Mining" %}{% endblock %}
+
+{% block header_nav_collapse_left %}
+    {% if perms.moonmining.extractions_access %}
+        <li class="nav-item">
+            <a class="nav-link {% navactive request 'moonmining:extractions' %}" href="{% url 'moonmining:extractions' %}">
+                {% translate 'Extractions' %}
+            </a>
+        </li>
+    {% endif %}
+    {% if "/moonmining/extraction/" in request.path %}
+        <li class="nav-item">
+            <a class="nav-link {% renavactive request '/moonmining/extraction/' %}" href="#">{% translate 'Extraction Details' %}</a>
+        </li>
+    {% endif %}
+    <li class="nav-item">
+        <a class="nav-link {% navactive request 'moonmining:moons' %}" href="{% url 'moonmining:moons' %}">{% translate 'Moons' %}</a>
+    </li>
+    {% if "/moonmining/moon/" in request.path %}
+        <li class="nav-item">
+            <a class="nav-link {% renavactive request '/moonmining/moon/' %}" href="#">{% translate 'Moon Details' %}</a>
+        </li>
+    {% endif %}
+        {% if perms.moonmining.reports_access %}
+        <li class="nav-item">
+            <a class="nav-link {% navactive request 'moonmining:reports' %}" href="{% url 'moonmining:reports' %}">{% translate 'Reports' %}</a>
+        </li>
+    {% endif %}
+{% endblock header_nav_collapse_left %}
+
+{% block header_nav_collapse_right %}
+    <li class="nav-item">
+        <a class="btn btn-success me-2" href="{% url 'moonmining:add_owner' %}" title="{% translate 'Add new corporation or update existing' %}">
+            <i class="fa-solid fa-plus"></i>&nbsp;Add Corporation
+        </a>
+    </li>
+{% endblock header_nav_collapse_right %}
+
+{% block header_nav_user_character_control %}
+    {% comment %}
+        This block is left empty intentionally to disable defaults.
+    {% endcomment %}
+{% endblock %}
+
 {% block content %}
-    <br>
-    {% include 'moonmining/partials/menu.html' %}
-    <h2>{{ page_title }}</h2>
     {% block details %}{% endblock %}
 {% endblock %}
 
 {% block extra_javascript %}
-    {% include 'bundles/datatables-js.html' %}
-    <script type="text/javascript" src="{% static 'moonmining/vendor/datatables/plugins/filterDropDown.min.js' %}"></script>
+    {% include "bundles/datatables-js-bs5.html" %}
+    {% include "bundles/filterdropdown-js.html" %}
     {% include 'moonmining/partials/global_js.html' %}
 
 {% endblock %}
 
 {% block extra_css %}
-    {% include 'bundles/datatables-css.html' %}
+    {% include 'bundles/datatables-css-bs5.html' %}
     <link href="{% static 'moonmining/css/global.css' %}" type="text/css" rel="stylesheet">
     <link href="{% static 'moonmining/css/moonmining.css' %}" type="text/css" rel="stylesheet">
 {% endblock %}

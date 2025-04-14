@@ -5,10 +5,8 @@
 <div class="modal-dialog {{ modal_size|default:'modal-lg' }}" role="document" id="{{ modal_content_id }}">
     <div class="modal-content">
         <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
-                &times;
-            </span></button>
-            <h4 class="modal-title" id="myModalLabel">{{ modal_title }}</h4>
+            <h5 class="modal-title" id="myModalLabel">{{ modal_title }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
         <div class="modal-body">
@@ -17,14 +15,14 @@
 
         <div class="modal-footer">
             {% if new_page_url %}
-                <a  class="btn btn-default pull-left"
+                <a  class="btn btn-secondary pull-left"
                     href="{{ new_page_url }}?new_page=yes"
                     target="_blank"
                     title="{% translate 'Open in new tab' %}">
                     <i class="far fa-window-restore"></i>
                 </a>
             {% endif %}
-            <button type="button" class="btn btn-default" data-dismiss="modal">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                 {% translate 'Close' %}
             </button>
         </div>

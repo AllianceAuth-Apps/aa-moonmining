@@ -66,8 +66,8 @@ def reports(request):
 
 def _moon_link_html(moon: Moon) -> str:
     return format_html(
-        '<a href="#" data-toggle="modal" '
-        'data-target="#modalMoonDetails" '
+        '<a href="#" data-bs-toggle="modal" '
+        'data-bs-target="#modalMoonDetails" '
         'title="{}" '
         "data-ajax_url={}>"
         "{}</a>",

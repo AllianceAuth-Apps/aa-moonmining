@@ -4,22 +4,22 @@
 
 {% block details %}
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
-        <li role="presentation" class="active">
-            <a href="#tab_owned_value" aria-controls="tab_owned_value" role="tab" data-toggle="tab">Potential monthly income</a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link  active" data-bs-target="#tab_owned_value" aria-controls="tab_owned_value" role="tab" data-bs-toggle="tab">Potential monthly income</a>
         </li>
-        <li role="presentation">
-            <a href="#tab_user_mining" aria-controls="tab_user_mining" role="tab" data-toggle="tab">Member Mining</a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-target="#tab_user_mining" aria-controls="tab_user_mining" role="tab" data-bs-toggle="tab">Member Mining</a>
         </li>
-        <li role="presentation">
-            <a href="#tab_user_uploaded" aria-controls="tab_user_uploaded" role="tab" data-toggle="tab">Member Uploads</a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-target="#tab_user_uploaded" aria-controls="tab_user_uploaded" role="tab" data-bs-toggle="tab">Member Uploads</a>
         </li>
-        <li role="presentation">
-            <a href="#tab_ore_prices" aria-controls="tab_ore_prices" role="tab" data-toggle="tab">Ore prices</a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-target="#tab_ore_prices" aria-controls="tab_ore_prices" role="tab" data-bs-toggle="tab">Ore prices</a>
         </li>
     </ul>
 
-    <div class="panel panel-default panel-tabs">
-        <div class="panel-body">
+    <div class="card card-default card-tabs">
+        <div class="card-body">
             <div class="tab-content">
                 {% include "moonmining/partials/reports_owned_value_tab.html" %}
                 {% include "moonmining/partials/reports_user_mining_tab.html" %}
@@ -154,6 +154,7 @@
                         }
                     ],
                     bootstrap: true,
+                    bootstrap_version: 5,
                     autoSize: false
                 },
                 footerCallback: function (row, data, start, end, display) {
@@ -200,6 +201,7 @@
                         }
                     ],
                     bootstrap: true,
+                    bootstrap_version: 5,
                     autoSize: false
                 },
                 footerCallback: function (row, data, start, end, display) {
@@ -248,6 +250,7 @@
                         }
                     ],
                     bootstrap: true,
+                    bootstrap_version: 5,
                     autoSize: false
                 }
             });

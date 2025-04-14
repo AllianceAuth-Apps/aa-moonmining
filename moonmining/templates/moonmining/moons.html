@@ -3,35 +3,34 @@
 {% load static %}
 
 {% block details %}
-    <span class="pull-right">
-        {% if perms.moonmining.upload_moon_scan %}
-            <button type="button" class="btn btn-success btn-tabs" data-toggle="modal" data-target="#modalUploadSurvey" data-ajax_url="{% url 'moonmining:upload_survey' %}">
-                {% translate "Upload Moon Surveys" %}
-            </button>
-        {% endif %}
-    </span>
-
     <!-- Nav tabs -->
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
         {% if perms.moonmining.extractions_access or perms.moonmining.view_all_moons %}
-            <li role="presentation">
-                <a href="#tab_{{ MoonsCategory.OURS }}" aria-controls="tab_{{ MoonsCategory.OURS }}" role="tab" data-toggle="tab">{% translate "Owned Moons" %}</a>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-target="#tab_{{ MoonsCategory.OURS }}" aria-controls="tab_{{ MoonsCategory.OURS }}" role="tab" data-bs-toggle="tab">{% translate "Owned Moons" %}</a>
             </li>
         {% endif %}
         {% if perms.moonmining.view_all_moons %}
-            <li role="presentation">
-                <a href="#tab_{{ MoonsCategory.ALL }}" aria-controls="tab_{{ MoonsCategory.ALL }}" role="tab" data-toggle="tab">{% translate "All Moons" %}</a>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-target="#tab_{{ MoonsCategory.ALL }}" aria-controls="tab_{{ MoonsCategory.ALL }}" role="tab" data-bs-toggle="tab">{% translate "All Moons" %}</a>
             </li>
         {% endif %}
         {% if perms.moonmining.upload_moon_scan %}
-            <li role="presentation">
-                <a href="#tab_{{ MoonsCategory.UPLOADS }}" aria-controls="tab_{{ MoonsCategory.UPLOADS }}" role="tab" data-toggle="tab">{% translate "My Uploaded Moons" %}</a>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-target="#tab_{{ MoonsCategory.UPLOADS }}" aria-controls="tab_{{ MoonsCategory.UPLOADS }}" role="tab" data-bs-toggle="tab">{% translate "My Uploaded Moons" %}</a>
             </li>
          {% endif %}
+         {% if perms.moonmining.upload_moon_scan %}
+            <li class="nav-item ms-auto" role="presentation">
+                <button type="button" class="btn btn-success btn-tabs" data-bs-toggle="modal" data-bs-target="#modalUploadSurvey" data-ajax_url="{% url 'moonmining:upload_survey' %}">
+                    {% translate "Upload Moon Surveys" %}
+                </button>
+            </li>
+        {% endif %}
     </ul>
 
-    <div class="panel panel-default panel-tabs">
-        <div class="panel-body">
+    <div class="card card-default card-tabs">
+        <div class="card-body">
             <div class="tab-content">
                 {% include "moonmining/partials/moons_tab.html" with category=MoonsCategory.OURS %}
                 {% include "moonmining/partials/moons_tab.html" with category=MoonsCategory.ALL %}
@@ -156,6 +155,7 @@
                 filterDropDown: {
                     columns: dropDownColumns,
                     bootstrap: true,
+                    bootstrap_version: 5,
                     autoSize: false
                 }
             };
@@ -193,7 +193,7 @@
                 $("#wrapper_{{ MoonsCategory.UPLOADS }}").show();
             } );
 
-            $('#myTabs a[href="#' + defaultTab + '"]').tab('show');
+            $('#myTabs button[data-bs-target="#' + defaultTab + '"]').tab('show');
 
             handle_modal_events("modalUploadSurvey", "modalUploadSurveyContent");
             handle_modal_events("modalMoonDetails", "modalMoonDetailsContent");

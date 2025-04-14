@@ -4,14 +4,20 @@
 
 {% block details %}
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
-        <li role="presentation">
-            <a href="#tab_{{ ExtractionsCategory.UPCOMING }}" aria-controls="tab_{{ ExtractionsCategory.UPCOMING }}" role="tab" data-toggle="tab">Upcoming Extractions</a>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-target="#tab_{{ ExtractionsCategory.UPCOMING }}" aria-controls="tab_{{ ExtractionsCategory.UPCOMING }}" role="tab" data-bs-toggle="tab">
+                Upcoming Extractions
+            </button>
         </li>
-        <li role="presentation"><a href="#tab_{{ ExtractionsCategory.PAST }}" aria-controls="tab_{{ ExtractionsCategory.PAST }}" role="tab" data-toggle="tab">Past Extractions</a></li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-target="#tab_{{ ExtractionsCategory.PAST }}" aria-controls="tab_{{ ExtractionsCategory.PAST }}" role="tab" data-bs-toggle="tab">
+                Past Extractions
+            </button>
+        </li>
     </ul>
 
-    <div class="panel panel-default panel-tabs">
-        <div class="panel-body">
+    <div class="card card-default card-tabs">
+        <div class="card-body">
             <div class="tab-content">
                 {% include "moonmining/partials/extractions_tab.html" with category=ExtractionsCategory.UPCOMING %}
                 {% include "moonmining/partials/extractions_tab.html" with category=ExtractionsCategory.PAST %}
@@ -117,6 +123,7 @@
                         }
                     ],
                     bootstrap: true,
+                    bootstrap_version: 5,
                     autoSize: false
                 },
                 footerCallback: function (row, data, start, end, display) {
@@ -138,7 +145,7 @@
             def.order = [ [0, "desc"] ]
             $('#table_{{ ExtractionsCategory.PAST }}').DataTable(def);
 
-            $('#myTabs a[href="#tab_{{ ExtractionsCategory.UPCOMING }}"]').tab('show')
+            $('#myTabs button[data-bs-target="#tab_{{ ExtractionsCategory.UPCOMING }}"]').tab('show')
 
             handle_modal_events("modalMoonDetails", "modalMoonDetailsContent")
             handle_modal_events("modalExtractionDetails", "modalExtractionDetailsContent")
