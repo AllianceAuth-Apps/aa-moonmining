@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
-from app_utils.views import BootstrapStyle
+from app_utils.views import BootstrapStyleBS5
 
 from moonmining.models import Moon
 
@@ -25,7 +25,7 @@ def fontawesome_modal_button_html(
     fa_code: str,
     ajax_url: str = "",
     tooltip: str = "",
-    style=BootstrapStyle.DEFAULT,
+    style=BootstrapStyleBS5.DEFAULT,
 ) -> str:
     """Return HTML for a modal button with fontawesome symbols.
 
@@ -45,7 +45,7 @@ def fontawesome_modal_button_html(
         "{}>"
         '<i class="{}"></i>'
         "</button>",
-        BootstrapStyle(style),
+        BootstrapStyleBS5(style),
         modal_id,
         mark_safe(f'title="{tooltip}" ') if tooltip else "",
         mark_safe(f'data-ajax_url="{ajax_url}" ') if ajax_url else "",

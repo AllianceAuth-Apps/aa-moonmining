@@ -1,13 +1,23 @@
 /* dl styling */
-.dl-horizontal dt {
-	text-align: left;
-	width: 10em;
-}
-
-.dl-horizontal dd {
-	margin-left: 10em;
-	margin-bottom: 0.5em;
-}
+dl {
+	width: 100%;
+	overflow: hidden;
+	padding: 0;
+  }
+  dt {
+	float: left;
+	width: 30%;
+	/* adjust the width; make sure the total of both is 100% */
+	padding: 0;
+	margin-bottom: 1em;
+  }
+  dd {
+	float: left;
+	width: 70%;
+	/* adjust the width; make sure the total of both is 100% */
+	padding: 0;
+	margin-bottom: 1em;
+  }
 
 #table_extraction_details thead th:nth-child(4) {
 	text-align: right;

@@ -3,7 +3,7 @@ from django.apps import AppConfig
 from . import __version__
 
 
-class MoonPlanerConfig(AppConfig):
+class MoonMiningConfig(AppConfig):
     name = "moonmining"
     label = "moonmining"
-    verbose_name = "Moon Mining v{}".format(__version__)
+    verbose_name = f"Moon Mining v{__version__}"
