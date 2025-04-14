@@ -1,4 +1,5 @@
 """Generate AllianceAuth test objects from allianceauth.json."""
+
 import json
 from pathlib import Path
 
