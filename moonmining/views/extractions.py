@@ -22,7 +22,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
 from allianceauth.eveonline.evelinks import dotlan
-from app_utils.views import fontawesome_modal_button_html, link_html, yesno_str
+from app_utils.views import link_html, yesno_str
 
 from moonmining import helpers
 from moonmining.app_settings import (
@@ -33,7 +33,10 @@ from moonmining.app_settings import (
 )
 from moonmining.constants import DATE_FORMAT, DATETIME_FORMAT
 from moonmining.models import Extraction
-from moonmining.views._helpers import moon_details_button_html
+from moonmining.views._helpers import (
+    fontawesome_modal_button_html,
+    moon_details_button_html,
+)
 
 
 class ExtractionsCategory(str, helpers.EnumToDict, Enum):
