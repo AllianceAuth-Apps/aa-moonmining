@@ -17,10 +17,9 @@ from app_utils.views import BootstrapStyleBS5
 from moonmining.app_settings import MOONMINING_REPROCESSING_YIELD
 from moonmining.constants import EveDogmaAttributeId, EveGroupId
 from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
+from moonmining.helpers import bootstrap5_label_html
 from moonmining.managers import EveOreTypeManger, ExtractionManager
 from moonmining.models.notifications import NotificationType
-
-from .helpers import bootstrap5_label_html
 
 
 class OreQualityClass(models.TextChoices):

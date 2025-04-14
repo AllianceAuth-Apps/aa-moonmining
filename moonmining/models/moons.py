@@ -20,10 +20,9 @@ from moonmining.app_settings import (
     MOONMINING_VOLUME_PER_MONTH,
 )
 from moonmining.core import CalculatedExtraction
+from moonmining.helpers import bootstrap5_label_html
 from moonmining.managers import MoonManager
 from moonmining.models.extractions import EveOreType, OreRarityClass
-
-from .helpers import bootstrap5_label_html
 
 
 class Label(models.Model):
