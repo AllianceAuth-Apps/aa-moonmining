@@ -1,6 +1,5 @@
 """Global constants."""
 
-
 from enum import IntEnum
 
 

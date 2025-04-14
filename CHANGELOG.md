@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [2.0.1] - 2025-04-14
+
+### Fixes
+
+- Tags for moon rarity not rendering correctly
+
 ## [2.0.0] - 2025-04-14
 
 ### Update notes

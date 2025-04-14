@@ -12,11 +12,12 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eveuniverse.models import EveEntity, EveType
 
-from app_utils.views import BootstrapStyle, bootstrap_label_html
+from app_utils.views import BootstrapStyleBS5
 
 from moonmining.app_settings import MOONMINING_REPROCESSING_YIELD
 from moonmining.constants import EveDogmaAttributeId, EveGroupId
 from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
+from moonmining.helpers import bootstrap5_label_html
 from moonmining.managers import EveOreTypeManger, ExtractionManager
 from moonmining.models.notifications import NotificationType
 
@@ -33,12 +34,12 @@ class OreQualityClass(models.TextChoices):
     def bootstrap_tag_html(self) -> str:
         """Return bootstrap tag."""
         map_quality_to_label_def = {
-            self.IMPROVED: {"text": "+15%", "label": BootstrapStyle.SUCCESS},
-            self.EXCELLENT: {"text": "+100%", "label": BootstrapStyle.WARNING},
+            self.IMPROVED: {"text": "+15%", "label": BootstrapStyleBS5.SUCCESS},
+            self.EXCELLENT: {"text": "+100%", "label": BootstrapStyleBS5.WARNING},
         }
         try:
             label_def = map_quality_to_label_def[self]
-            return bootstrap_label_html(label_def["text"], label=label_def["label"])
+            return bootstrap5_label_html(label_def["text"], label=label_def["label"])
         except KeyError:
             return ""
 
@@ -78,14 +79,14 @@ class Extraction(models.Model):
         def bootstrap_tag_html(self) -> str:
             """Return HTML to render as bootstrap tag."""
             map_to_type = {
-                self.STARTED: BootstrapStyle.SUCCESS,
-                self.CANCELED: BootstrapStyle.DANGER,
-                self.READY: BootstrapStyle.WARNING,
-                self.COMPLETED: BootstrapStyle.PRIMARY,
+                self.STARTED: BootstrapStyleBS5.SUCCESS,
+                self.CANCELED: BootstrapStyleBS5.DANGER,
+                self.READY: BootstrapStyleBS5.WARNING,
+                self.COMPLETED: BootstrapStyleBS5.PRIMARY,
                 self.UNDEFINED: "",
             }
             try:
-                return bootstrap_label_html(self.label, label=map_to_type[self].value)
+                return bootstrap5_label_html(self.label, label=map_to_type[self].value)
             except KeyError:
                 return ""
 
@@ -343,14 +344,14 @@ class OreRarityClass(models.IntegerChoices):
     def bootstrap_tag_html(self) -> str:
         """Return as bootstrap tag HTML."""
         map_rarity_to_type = {
-            self.R4: BootstrapStyle.PRIMARY,
-            self.R8: BootstrapStyle.INFO,
-            self.R16: BootstrapStyle.SUCCESS,
-            self.R32: BootstrapStyle.WARNING,
-            self.R64: BootstrapStyle.DANGER,
+            self.R4: BootstrapStyleBS5.PRIMARY,
+            self.R8: BootstrapStyleBS5.INFO,
+            self.R16: BootstrapStyleBS5.SUCCESS,
+            self.R32: BootstrapStyleBS5.WARNING,
+            self.R64: BootstrapStyleBS5.DANGER,
         }
         try:
-            return bootstrap_label_html(
+            return bootstrap5_label_html(
                 f"R{self.value}", label=map_rarity_to_type[self].value
             )
         except KeyError:

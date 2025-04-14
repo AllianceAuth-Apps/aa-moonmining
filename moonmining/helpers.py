@@ -4,6 +4,7 @@ import datetime as dt
 from collections import defaultdict
 from typing import List
 
+from django.utils.html import format_html
 from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import User
@@ -52,3 +53,8 @@ def user_perms_lookup(user: User, selected_permissions: List[str]) -> dict:
         app_name, perm_name = permission.split(".")
         user_perms[app_name][perm_name] = permission in all_permissions
     return user_perms
+
+
+def bootstrap5_label_html(text: str, label: str = "default") -> str:
+    """Return HTML for a Bootstrap 5 label."""
+    return format_html('<span class="badge text-bg-{}">{}</span>', label, text)

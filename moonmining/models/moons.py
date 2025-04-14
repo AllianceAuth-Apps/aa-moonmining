@@ -13,13 +13,14 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eveuniverse.models import EveMoon, EveRegion, EveSolarSystem
 
-from app_utils.views import BootstrapStyle, bootstrap_label_html
+from app_utils.views import BootstrapStyleBS5
 
 from moonmining.app_settings import (
     MOONMINING_VOLUME_PER_DAY,
     MOONMINING_VOLUME_PER_MONTH,
 )
 from moonmining.core import CalculatedExtraction
+from moonmining.helpers import bootstrap5_label_html
 from moonmining.managers import MoonManager
 from moonmining.models.extractions import EveOreType, OreRarityClass
 
@@ -41,16 +42,16 @@ class Label(models.Model):
         def bootstrap_style(self) -> str:
             """Return HTML to render a bootstrap tag."""
             map_to_type = {
-                self.DARK_BLUE: BootstrapStyle.PRIMARY,
-                self.GREEN: BootstrapStyle.SUCCESS,
-                self.LIGHT_BLUE: BootstrapStyle.INFO,
-                self.ORANGE: BootstrapStyle.WARNING,
-                self.RED: BootstrapStyle.DANGER,
+                self.DARK_BLUE: BootstrapStyleBS5.PRIMARY,
+                self.GREEN: BootstrapStyleBS5.SUCCESS,
+                self.LIGHT_BLUE: BootstrapStyleBS5.INFO,
+                self.ORANGE: BootstrapStyleBS5.WARNING,
+                self.RED: BootstrapStyleBS5.DANGER,
             }
             try:
                 return map_to_type[self].value
             except KeyError:
-                return BootstrapStyle.DEFAULT
+                return BootstrapStyleBS5.DEFAULT
 
     description = models.TextField(default="", blank=True)
     name = models.CharField(max_length=100, unique=True)
@@ -67,7 +68,7 @@ class Label(models.Model):
     def tag_html(self) -> str:
         """Return tag HTML for this obj."""
         label_style = self.Style(self.style).bootstrap_style
-        return bootstrap_label_html(self.name, label=label_style)
+        return bootstrap5_label_html(self.name, label=label_style)
 
 
 class Moon(models.Model):
