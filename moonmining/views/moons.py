@@ -74,24 +74,12 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
     # displayed by datatables. For non sortable columns use empty
     # value like ''
     order_columns = [
-        "pk",
-        "name",
-        "refinery__eve_solar_system__name",
+        "eve_moon__name",
+        "eve_moon__eve_planet__eve_solar_system__name",
+        "eve_moon__eve_planet__eve_solar_system__eve_constellation__name",
         "refinery__name",
         "",
         "value",
-        "",
-        # hidden columns below
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
         "",
     ]
 
