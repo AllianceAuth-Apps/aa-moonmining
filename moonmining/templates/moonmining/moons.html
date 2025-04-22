@@ -100,6 +100,11 @@
                     idx: 8,
                     title: "{% translate 'Owned?' %}",
                     maxWidth: "10em"
+                },
+                {
+                    idx: 16,
+                    title: "{% translate 'Ore Type' %}",
+                    maxWidth: "10em"
                 }
             ];
             if (perms.moonmining.extractions_access) {
@@ -141,6 +146,7 @@
                     { data: 'constellation_name' },
                     { data: 'label_name' },
                     { data: 'region_name' },
+                    { data: 'ore_type_dummy' },
                 ],
                 searching: true,
                 processing: true,
@@ -150,7 +156,7 @@
                 order: [ [0, "asc"] ],
                 columnDefs: [
                     { "orderable": false, "targets": [ 4, 6 ] },
-                    { "visible": false, "targets": [ 7, 8, 9, 10, 11, 12, 13, 14, 15 ] },
+                    { "visible": false, "targets": [ 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ] },
                 ],
                 filterDropDown: {
                     columns: dropDownColumns,
