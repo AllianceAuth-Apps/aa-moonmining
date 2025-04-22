@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [2.1.0] - 2025-04-22
+
+### Added
+
+- Search moons by ore type (#20)
+
+### Fixed
+
+- Sort is not working on moons page
+
 ## [2.0.1] - 2025-04-14
 
 ### Fixes

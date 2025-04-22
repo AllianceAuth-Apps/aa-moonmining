@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Case, F, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, F, OuterRef, Q, QuerySet, Subquery, Value, When
 from django.db.models.functions import Concat
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -28,7 +28,7 @@ from moonmining.app_settings import (
 )
 from moonmining.forms import MoonScanForm
 from moonmining.helpers import user_perms_lookup
-from moonmining.models import Extraction, Moon
+from moonmining.models import Extraction, Moon, MoonProduct
 from moonmining.views._helpers import moon_details_button_html
 from moonmining.views.extractions import extraction_details_button_html
 
@@ -66,6 +66,7 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
         "alliance_name",
         "has_refinery",
         "label_name",
+        "ore_type_dummy",
     ]
 
     # define column names that will be used in sorting
@@ -73,34 +74,22 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
     # displayed by datatables. For non sortable columns use empty
     # value like ''
     order_columns = [
-        "pk",
-        "name",
-        "refinery__eve_solar_system__name",
+        "eve_moon__name",
+        "eve_moon__eve_planet__eve_solar_system__name",
+        "eve_moon__eve_planet__eve_solar_system__eve_constellation__name",
         "refinery__name",
         "",
         "value",
         "",
-        # hidden columns below
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
     ]
 
-    def get_initial_queryset(self) -> models.QuerySet:
+    def get_initial_queryset(self) -> QuerySet:
         return self.initial_queryset(
             category=self.kwargs["category"], user=self.request.user
         )
 
     @classmethod
-    def initial_queryset(cls, category: str, user: User) -> models.QuerySet:
+    def initial_queryset(cls, category: str, user: User) -> QuerySet:
         """Return initial queryset."""
         current_extraction_qs = Extraction.objects.filter(
             refinery__moon=OuterRef("pk"),
@@ -157,7 +146,7 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
 
         return Moon.objects.none()
 
-    def filter_queryset(self, qs) -> models.QuerySet:
+    def filter_queryset(self, qs: QuerySet) -> QuerySet:
         """use parameters passed in GET request to filter queryset"""
 
         qs = self._apply_search_filter(
@@ -182,8 +171,11 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
             "eve_moon__eve_planet__eve_solar_system__eve_constellation__eve_region__name",
         )
 
-        search = self.request.GET.get("search[value]", None)
-        if search:
+        if ore_type_name := self.request.GET.get("columns[16][search][value]"):
+            if ore_type_name := ore_type_name.removeprefix("^").removesuffix("$"):
+                qs = qs.filter(products__ore_type__name__in=[ore_type_name])
+
+        if search := self.request.GET.get("search[value]", None):
             qs = qs.filter(
                 Q(eve_moon__name__istartswith=search)
                 | Q(refinery__name__istartswith=search)
@@ -206,15 +198,18 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
 
         # return qs
 
-    def _apply_search_filter(self, qs, column_num, field) -> models.QuerySet:
+    def _apply_search_filter(
+        self, qs: QuerySet, column_num: int, field: str
+    ) -> QuerySet:
         my_filter = self.request.GET.get(f"columns[{column_num}][search][value]", None)
-        if my_filter:
-            if self.request.GET.get(f"columns[{column_num}][search][regex]", False):
-                kwargs = {f"{field}__iregex": my_filter}
-            else:
-                kwargs = {f"{field}__istartswith": my_filter}
-            return qs.filter(**kwargs)
-        return qs
+        if not my_filter:
+            return qs
+
+        if self.request.GET.get(f"columns[{column_num}][search][regex]", False):
+            kwargs = {f"{field}__iregex": my_filter}
+        else:
+            kwargs = {f"{field}__istartswith": my_filter}
+        return qs.filter(**kwargs)
 
     # pylint: disable = too-many-return-statements
     def render_column(self, row, column) -> Union[str, dict]:
@@ -238,6 +233,9 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
 
         if result := self._render_refinery(row, column):
             return result
+
+        if column == "ore_type_dummy":
+            return ""
 
         return super().render_column(row, column)
 
@@ -318,9 +316,8 @@ class MoonListJson(PermissionRequiredMixin, LoginRequiredMixin, BaseDatatableVie
 def moons_fdd_data(request: HttpRequest, category: str) -> JsonResponse:
     """Provide lists for drop down fields."""
     qs = MoonListJson.initial_queryset(category=category, user=request.user)
-    columns = request.GET.get("columns")
     result = {}
-    if columns:
+    if columns := request.GET.get("columns"):
         for column in columns.split(","):
             options = _calc_options(request, qs, column)
             result[column] = sorted(list(set(options)), key=str.casefold)
@@ -328,7 +325,7 @@ def moons_fdd_data(request: HttpRequest, category: str) -> JsonResponse:
 
 
 # pylint: disable = too-many-return-statements
-def _calc_options(request, qs, column):
+def _calc_options(request: HttpRequest, qs: QuerySet, column: str) -> QuerySet:
     if column == "alliance_name":
         return qs.exclude(
             refinery__owner__corporation__alliance__isnull=True,
@@ -373,7 +370,15 @@ def _calc_options(request, qs, column):
             return qs.values_list("has_extraction_str", flat=True)
         return []
 
-    return [f"** ERROR: Invalid column name '{column}' **"]
+    if column == "ore_type_dummy":
+        moon_ids = set(qs.values_list("eve_moon_id", flat=True))
+        return (
+            MoonProduct.objects.filter(moon_id__in=moon_ids)
+            .select_related("ore_type")
+            .values_list("ore_type__name", flat=True)
+        )
+
+    return [f"** ERROR: No options defined for column name '{column}' **"]
 
 
 @login_required()
