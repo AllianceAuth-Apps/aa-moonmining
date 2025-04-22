@@ -3,5 +3,5 @@
 # pylint: disable = invalid-name
 default_app_config = "moonmining.apps.MoonMiningConfig"
 
-__version__ = "2.1.0a1"
+__version__ = "2.1.0"
 __title__ = "Moon Mining"
