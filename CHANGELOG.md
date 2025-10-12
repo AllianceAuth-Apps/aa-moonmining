@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [2.2.0] - 2025-10-12
+
+### Changed
+
+- Updated tasks to work with changed status endpoint. See [CHANGELOG](https://gitlab.com/ErikKalkoken/allianceauth-app-utils/-/blob/master/CHANGELOG.md#1270---2025-10-12) of app_utils for more information.
+
 ## [2.1.0] - 2025-04-22
 
 ### Added
@@ -160,7 +166,7 @@ This patch changes how permissions work, i.e. potentially increases the scope of
 
 ## [1.6.1] - 2022-04-28
 
-**Update notes**:<br>Due to the previous bug (#18) the calculated moon values may be inaccurate. We recommend to run the action "update selected owners from ESI" for all active ownwer on the admin site, which will also update moon values from the last extractions.
+**Update notes**:<br>Due to the previous bug (#18) the calculated moon values may be inaccurate. We recommend to run the action "update selected owners from ESI" for all active owner on the admin site, which will also update moon values from the last extractions.
 
 ### Added
 
@@ -169,7 +175,7 @@ This patch changes how permissions work, i.e. potentially increases the scope of
 ### Fixed
 
 - Automatically updated moon product percentages are sometimes off (#18)
-- Show "ESTIMATED" as "survey submitter" for extimated moon products
+- Show "ESTIMATED" as "survey submitter" for estimated moon products
 
 ### Changed
 
@@ -197,11 +203,11 @@ This patch changes how permissions work, i.e. potentially increases the scope of
 ### Changed
 
 - Now uses the **average price** for ores instead of an estimated price based on it's refined ores. This means that the prices shown in the app are now exactly the same as the prices shown on the Eve client, e.g. price estimates shown when scheduling a new extraction.
-- Now showing full unit prices in ISK, to improve comparibility between ore types
+- Now showing full unit prices in ISK, to improve comparability between ore types
 
 ### Fixed
 
-- Monthly volume used for moon value calucaltions adjusted to changed game mechanics (#13)
+- Monthly volume used for moon value calculations adjusted to changed game mechanics (#13)
 
 ## [1.4.0] - 2022-04-20
 
