@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [2.2.1] - 2025-10-27
+
+### Fixed
+
+- Issue with the template reports.html (#28)
+
 ## [2.2.0] - 2025-10-12
 
 ### Changed
