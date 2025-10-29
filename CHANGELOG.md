@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [2.2.2] - 2025-10-29
+
+### Changed
+
+- Use existing local version of RowGroup instead of linking to CDN
+
 ## [2.2.1] - 2025-10-27
 
 ### Fixed
