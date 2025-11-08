@@ -9,11 +9,10 @@ from django.utils.timezone import now
 from django_webtest import WebTest
 from eveuniverse.models import EveMoon
 
-from app_utils.esi import EsiStatus
 from app_utils.testing import (
-    NoSocketsTestCase,
     create_user_from_evecharacter,
     json_response_to_python,
+    reset_celery_once_locks,
 )
 
 from moonmining import tasks
@@ -60,10 +59,9 @@ class TestUI(WebTest):
     # TODO: Add more UI tests
 
 
-@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 100, 60))
 @patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestUpdateTasks(NoSocketsTestCase):
+class TestUpdateTasks(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -72,6 +70,7 @@ class TestUpdateTasks(NoSocketsTestCase):
         helpers.generate_eve_entities_from_allianceauth()
         helpers.generate_market_prices()
         _, cls.character_ownership = helpers.create_default_user_from_evecharacter(1001)
+        reset_celery_once_locks("moonmining")
 
     @patch(MODELS_PATH + ".esi")
     def test_should_update_all_mining_corporations(self, mock_esi):
