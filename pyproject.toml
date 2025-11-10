@@ -7,7 +7,7 @@ name = "aa-moonmining"
 dynamic = ["version", "description"]
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [{ name = "Erik Kalkoken", email = "kaloken87@gmail.com" }]
 classifiers = [
     "Environment :: Web Environment",
@@ -17,16 +17,15 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 ]
 dependencies = [
-    "allianceauth-app-utils>=1.28b1",
+    "allianceauth-app-utils>=2.0.0a1",
     "allianceauth>=4,<5",
     "django-bootstrap-form",
     "django-datatables-view>=1.20",

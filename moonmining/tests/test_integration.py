@@ -60,8 +60,8 @@ class TestUI(WebTest):
 
 
 @patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
-@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestUpdateTasks(TestCase):
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestRunRegularUpdates(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -144,6 +144,20 @@ class TestUpdateTasks(TestCase):
         corporation_2002.refresh_from_db()
         self.assertEqual(corporation_2002.last_update_at, my_date)
         self.assertIsNone(corporation_2002.last_update_ok)
+
+
+@patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
+class TestUpdateOtherTasks(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eveuniverse()
+        load_allianceauth()
+        helpers.generate_eve_entities_from_allianceauth()
+        helpers.generate_market_prices()
+        _, cls.character_ownership = helpers.create_default_user_from_evecharacter(1001)
+        reset_celery_once_locks("moonmining")
 
     @patch(MODELS_PATH + ".esi")
     def test_should_update_mining_ledgers(self, mock_esi):
