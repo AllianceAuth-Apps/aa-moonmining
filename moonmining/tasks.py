@@ -1,6 +1,6 @@
 """Tasks."""
 
-from celery import chain, shared_task
+from celery import Task, chain, shared_task
 
 from django.contrib.auth.models import User
 from django.utils.timezone import now
@@ -8,7 +8,8 @@ from eveuniverse.models import EveMarketPrice
 from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.services.hooks import get_extension_logger
-from app_utils.esi import fetch_esi_status
+from allianceauth.services.tasks import QueueOnce
+from app_utils.esi import retry_task_on_esi_error_and_offline
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
@@ -37,43 +38,43 @@ def run_regular_updates():
         update_owner.delay(owner_pk)
 
 
-@shared_task
-def update_owner(owner_pk):
+@shared_task(base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+def update_owner(owner_pk: int):
     """Update refineries and extractions for given owner."""
-    if fetch_esi_status().is_ok:
-        chain(
-            update_refineries_from_esi_for_owner.si(owner_pk),
-            fetch_notifications_from_esi_for_owner.si(owner_pk),
-            update_extractions_for_owner.si(owner_pk),
-            mark_successful_update_for_owner.si(owner_pk),
-        ).delay()
-    else:
-        logger.warning("ESI ist not available. Aborting.")
+    chain(
+        update_refineries_from_esi_for_owner.si(owner_pk),
+        fetch_notifications_from_esi_for_owner.si(owner_pk),
+        update_extractions_for_owner.si(owner_pk),
+        mark_successful_update_for_owner.si(owner_pk),
+    ).delay()
 
 
-@shared_task
-def update_refineries_from_esi_for_owner(owner_pk):
+@shared_task(bind=True, base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+def update_refineries_from_esi_for_owner(self: Task, owner_pk: int):
     """Update refineries for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
-    owner.update_refineries_from_esi()
+    with retry_task_on_esi_error_and_offline(self):
+        owner.update_refineries_from_esi()
 
 
-@shared_task
-def fetch_notifications_from_esi_for_owner(owner_pk):
+@shared_task(bind=True, base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+def fetch_notifications_from_esi_for_owner(self: Task, owner_pk: int):
     """Update extractions for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
-    owner.fetch_notifications_from_esi()
+    with retry_task_on_esi_error_and_offline(self):
+        owner.fetch_notifications_from_esi()
 
 
-@shared_task
-def update_extractions_for_owner(owner_pk):
+@shared_task(bind=True, base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+def update_extractions_for_owner(self: Task, owner_pk: int):
     """Update extractions for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
-    owner.update_extractions()
+    with retry_task_on_esi_error_and_offline(self):
+        owner.update_extractions()
 
 
 @shared_task
-def mark_successful_update_for_owner(owner_pk):
+def mark_successful_update_for_owner(owner_pk: int):
     """Mark a successful update for this corporation."""
     owner = Owner.objects.get(pk=owner_pk)
     owner.last_update_ok = True
@@ -90,48 +91,50 @@ def run_report_updates():
         update_mining_ledger_for_owner.delay(owner_pk)
 
 
-@shared_task
-def update_mining_ledger_for_owner(owner_pk):
+@shared_task(bind=True, base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+def update_mining_ledger_for_owner(self: Task, owner_pk: int):
     """Update mining ledger for a owner from ESI."""
-    if fetch_esi_status().is_ok:
-        owner = Owner.objects.get(pk=owner_pk)
+    owner = Owner.objects.get(pk=owner_pk)
+    with retry_task_on_esi_error_and_offline(self):
         observer_ids = owner.fetch_mining_ledger_observers_from_esi()
-        for refinery_id in owner.refineries.filter(id__in=observer_ids).values_list(
-            "id", flat=True
-        ):
-            update_mining_ledger_for_refinery.apply_async(
-                kwargs={"refinery_id": refinery_id}, priority=TASK_PRIORITY_LOWER
-            )
-    else:
-        logger.warning("ESI ist not available. Aborting.")
+
+    for refinery_id in owner.refineries.filter(id__in=observer_ids).values_list(
+        "id", flat=True
+    ):
+        update_mining_ledger_for_refinery.apply_async(
+            kwargs={"refinery_id": refinery_id}, priority=TASK_PRIORITY_LOWER
+        )
 
 
-@shared_task
-def update_mining_ledger_for_refinery(refinery_id):
+@shared_task(
+    bind=True,
+    base=QueueOnce,
+    once={"keys": ["refinery_id"], "graceful": True},
+)
+def update_mining_ledger_for_refinery(self: Task, refinery_id: int):
     """Update mining ledger for a refinery from ESI."""
     refinery = Refinery.objects.get(id=refinery_id)
-    refinery.update_mining_ledger_from_esi()
+    with retry_task_on_esi_error_and_offline(self):
+        refinery.update_mining_ledger_from_esi()
 
 
 @shared_task
 def run_calculated_properties_update():
     """Update the calculated properties of all moons and all extractions."""
-    if fetch_esi_status().is_ok:
-        chain(
-            update_market_prices.si().set(priority=TASK_PRIORITY_LOWER),
-            update_current_ore_prices.si().set(priority=TASK_PRIORITY_LOWER),
-            update_moons.si().set(priority=TASK_PRIORITY_LOWER),
-            update_extractions.si().set(priority=TASK_PRIORITY_LOWER),
-            update_unresolved_eve_entities.si().set(priority=TASK_PRIORITY_LOWER),
-        ).delay()
-    else:
-        logger.warning("ESI ist not available. Aborting.")
+    chain(
+        update_market_prices.si().set(priority=TASK_PRIORITY_LOWER),
+        update_current_ore_prices.si().set(priority=TASK_PRIORITY_LOWER),
+        update_moons.si().set(priority=TASK_PRIORITY_LOWER),
+        update_extractions.si().set(priority=TASK_PRIORITY_LOWER),
+        update_unresolved_eve_entities.si().set(priority=TASK_PRIORITY_LOWER),
+    ).delay()
 
 
-@shared_task
-def update_market_prices():
+@shared_task(bind=True, base=QueueOnce)
+def update_market_prices(self):
     """Update all market prices."""
-    EveMarketPrice.objects.update_from_esi()
+    with retry_task_on_esi_error_and_offline(self):
+        EveMarketPrice.objects.update_from_esi()
 
 
 @shared_task
@@ -159,7 +162,7 @@ def update_moon_calculated_properties(moon_pk):
 
 
 @shared_task
-def update_moon_products_from_latest_extraction(moon_pk):
+def update_moon_products_from_latest_extraction(moon_pk: int):
     """Update moon products from latest extraction."""
     moon = Moon.objects.get(pk=moon_pk)
     result = moon.update_products_from_latest_extraction(overwrite_survey=True)
@@ -189,7 +192,7 @@ def update_extractions():
 
 
 @shared_task
-def update_extraction_calculated_properties(extraction_pk):
+def update_extraction_calculated_properties(extraction_pk: int):
     """Update all calculated properties for given extraction."""
     extraction = Extraction.objects.get(pk=extraction_pk)
     extraction.update_calculated_properties()

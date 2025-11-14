@@ -60,9 +60,9 @@ test-py311-dj42:
 
 test-py312-dj42:
     extends: .tox_setup
-    image: python:3.11-bookworm
+    image: python:3.12-bookworm
     script:
-        - tox -e py311-django42
+        - tox -e py312-django42
         - bash <(curl -s https://codecov.io/bash)
 
 deploy-pypi:

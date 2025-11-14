@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [2.3.0] - 2025-11-14
+
+### Changed
+
+- Added basic support for ESI rate limits
+- All ESI related tasks are now retrying smartly on ESI issues
+
 ## [2.2.2] - 2025-10-29
 
 ### Changed
