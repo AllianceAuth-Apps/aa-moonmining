@@ -7,15 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [3.0.0] - TBD
-
-This release adds basic support for ESI rate limits and contains breaking changes.
+## [2.3.0] - 2025-11-14
 
 ### Changed
 
-- BREAKING CHANGE: Dropped support for Python 3.8, 3.9
 - Added basic support for ESI rate limits
-- Added support for Python 3.13
+- All ESI related tasks are now retrying smartly on ESI issues
 
 ## [2.2.2] - 2025-10-29
 
