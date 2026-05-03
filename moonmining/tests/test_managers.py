@@ -1,8 +1,6 @@
 import datetime as dt
 from unittest.mock import patch
 
-import pytz
-
 from django.test import TestCase
 from django.utils.timezone import now
 from eveuniverse.models import EveMarketPrice, EveType
@@ -66,39 +64,41 @@ class TestExtractionManager(TestCase):
         refinery = RefineryFactory()
         extraction_1 = ExtractionFactory(
             refinery=refinery,
-            started_at=dt.datetime(2021, 1, 1, 1, 0, tzinfo=pytz.UTC),
-            chunk_arrival_at=dt.datetime(2021, 1, 1, 12, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 1, 1, 15, 0, tzinfo=pytz.UTC),
+            started_at=dt.datetime(2021, 1, 1, 1, 0, tzinfo=dt.timezone.utc),
+            chunk_arrival_at=dt.datetime(2021, 1, 1, 12, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 1, 1, 15, 0, tzinfo=dt.timezone.utc),
             status=Extraction.Status.STARTED,
             create_products=False,
         )
         extraction_2 = ExtractionFactory(
             refinery=refinery,
-            started_at=dt.datetime(2021, 1, 1, 2, 0, tzinfo=pytz.UTC),
-            chunk_arrival_at=dt.datetime(2021, 1, 1, 15, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 1, 1, 18, 0, tzinfo=pytz.UTC),
+            started_at=dt.datetime(2021, 1, 1, 2, 0, tzinfo=dt.timezone.utc),
+            chunk_arrival_at=dt.datetime(2021, 1, 1, 15, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 1, 1, 18, 0, tzinfo=dt.timezone.utc),
             status=Extraction.Status.STARTED,
             create_products=False,
         )
         extraction_3 = ExtractionFactory(
             refinery=refinery,
-            started_at=dt.datetime(2021, 1, 1, 3, 0, tzinfo=pytz.UTC),
-            chunk_arrival_at=dt.datetime(2021, 1, 1, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 1, 1, 21, 0, tzinfo=pytz.UTC),
+            started_at=dt.datetime(2021, 1, 1, 3, 0, tzinfo=dt.timezone.utc),
+            chunk_arrival_at=dt.datetime(2021, 1, 1, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 1, 1, 21, 0, tzinfo=dt.timezone.utc),
             status=Extraction.Status.STARTED,
             create_products=False,
         )
         extraction_4 = ExtractionFactory(
             refinery=refinery,
-            started_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=pytz.UTC),
-            chunk_arrival_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 1, 1, 7, 0, tzinfo=pytz.UTC),
+            started_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=dt.timezone.utc),
+            chunk_arrival_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 1, 1, 7, 0, tzinfo=dt.timezone.utc),
             status=Extraction.Status.CANCELED,
             create_products=False,
         )
         # when
         with patch(MANAGERS_PATH + ".now") as mock_now:
-            mock_now.return_value = dt.datetime(2021, 1, 1, 15, 30, tzinfo=pytz.UTC)
+            mock_now.return_value = dt.datetime(
+                2021, 1, 1, 15, 30, tzinfo=dt.timezone.utc
+            )
             Extraction.objects.all().update_status()
         # then
         extraction_1.refresh_from_db()

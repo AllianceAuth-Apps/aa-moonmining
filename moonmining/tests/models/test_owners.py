@@ -1,8 +1,6 @@
 import datetime as dt
 from unittest.mock import patch
 
-import pytz
-
 from django.utils.timezone import now
 from esi.models import Token
 from eveuniverse.models import EveMoon
@@ -85,7 +83,7 @@ class TestOwnerFetchNotifications(NoSocketsTestCase):
         self.assertEqual(obj.notif_type, NotificationType.MOONMINING_EXTRACTION_STARTED)
         self.assertEqual(obj.sender_id, 2101)
         self.assertEqual(
-            obj.timestamp, dt.datetime(2019, 11, 22, 1, 0, tzinfo=pytz.UTC)
+            obj.timestamp, dt.datetime(2019, 11, 22, 1, 0, tzinfo=dt.timezone.utc)
         )
         self.assertEqual(obj.details["moonID"], 40161708)
         self.assertEqual(obj.details["structureID"], 1000000000001)
@@ -222,7 +220,7 @@ class TestOwnerUpdateExtractions(NoSocketsTestCase):
         self.assertEqual(extraction.status, Extraction.Status.STARTED)
         self.assertEqual(
             extraction.chunk_arrival_at,
-            dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
+            dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
         )
         self.assertEqual(extraction.started_by_id, 1001)
         self.assertEqual(extraction.products.count(), 4)
@@ -254,7 +252,9 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000001, owner=self.owner)
         # when
         with patch(MODELS_PATH + ".owners.now") as mock_now:
-            mock_now.return_value = dt.datetime(2021, 4, 5, 12, 0, 0, tzinfo=pytz.UTC)
+            mock_now.return_value = dt.datetime(
+                2021, 4, 5, 12, 0, 0, tzinfo=dt.timezone.utc
+            )
             self.owner.update_extractions_from_esi()
         # then
         self.assertEqual(refinery.extractions.count(), 1)
@@ -262,14 +262,15 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         self.assertEqual(extraction.status, Extraction.Status.STARTED)
         self.assertEqual(
             extraction.chunk_arrival_at,
-            dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
+            dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
         )
         self.assertEqual(
-            extraction.started_at, dt.datetime(2021, 4, 1, 12, 00, tzinfo=pytz.UTC)
+            extraction.started_at,
+            dt.datetime(2021, 4, 1, 12, 00, tzinfo=dt.timezone.utc),
         )
         self.assertEqual(
             extraction.auto_fracture_at,
-            dt.datetime(2021, 4, 15, 21, 00, tzinfo=pytz.UTC),
+            dt.datetime(2021, 4, 15, 21, 00, tzinfo=dt.timezone.utc),
         )
         self.assertEqual(extraction.products.count(), 0)
         self.assertIsNone(extraction.value)
@@ -281,7 +282,9 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000001, owner=self.owner)
         # when
         with patch(MODELS_PATH + ".owners.now") as mock_now:
-            mock_now.return_value = dt.datetime(2021, 4, 18, 18, 15, 0, tzinfo=pytz.UTC)
+            mock_now.return_value = dt.datetime(
+                2021, 4, 18, 18, 15, 0, tzinfo=dt.timezone.utc
+            )
             self.owner.update_extractions_from_esi()
         # then
         self.assertEqual(refinery.extractions.count(), 1)
@@ -294,15 +297,17 @@ class TestOwnerUpdateExtractionsFromEsi(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000001, owner=self.owner)
         started_extraction = ExtractionFactory(
             refinery=refinery,
-            started_at=dt.datetime(2021, 3, 10, 18, 0, tzinfo=pytz.UTC),
-            chunk_arrival_at=dt.datetime(2021, 3, 15, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 3, 15, 21, 0, tzinfo=pytz.UTC),
+            started_at=dt.datetime(2021, 3, 10, 18, 0, tzinfo=dt.timezone.utc),
+            chunk_arrival_at=dt.datetime(2021, 3, 15, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 3, 15, 21, 0, tzinfo=dt.timezone.utc),
             status=Extraction.Status.STARTED,
             create_products=False,
         )
         # when
         with patch(MODELS_PATH + ".owners.now") as mock_now:
-            mock_now.return_value = dt.datetime(2021, 4, 1, 12, 0, tzinfo=pytz.UTC)
+            mock_now.return_value = dt.datetime(
+                2021, 4, 1, 12, 0, tzinfo=dt.timezone.utc
+            )
             self.owner.update_extractions_from_esi()
         # then
         started_extraction.refresh_from_db()
@@ -349,9 +354,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000002, owner=owner)
         extraction = ExtractionFactory(
             refinery=refinery,
-            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
-            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=dt.timezone.utc),
             create_products=False,
         )
         # when
@@ -362,7 +367,7 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         self.assertEqual(extraction.status, Extraction.Status.CANCELED)
         self.assertEqual(
             extraction.canceled_at,
-            dt.datetime(2019, 11, 22, 2, tzinfo=pytz.UTC),
+            dt.datetime(2019, 11, 22, 2, tzinfo=dt.timezone.utc),
         )
         self.assertEqual(extraction.canceled_by_id, 1001)
         self.assertEqual(
@@ -378,9 +383,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000003, owner=owner)
         extraction = ExtractionFactory(
             refinery=refinery,
-            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
-            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=dt.timezone.utc),
             create_products=False,
         )
         ExtractionProductFactory(
@@ -412,9 +417,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000004, owner=owner)
         extraction = ExtractionFactory(
             refinery=refinery,
-            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
-            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=dt.timezone.utc),
             create_products=False,
         )
         ExtractionProductFactory(
@@ -447,9 +452,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000005, owner=owner)
         extraction = ExtractionFactory(
             refinery=refinery,
-            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
-            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=dt.timezone.utc),
             create_products=False,
         )
         ExtractionProductFactory(
@@ -485,9 +490,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000006, owner=owner)
         extraction = ExtractionFactory(
             refinery=refinery,
-            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
-            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 00, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 00, tzinfo=dt.timezone.utc),
             status=Extraction.Status.STARTED,
             create_products=False,
         )
@@ -512,9 +517,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery = RefineryFactory(id=1000000000001, owner=owner)
         extraction = ExtractionFactory(
             refinery=refinery,
-            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=pytz.UTC),
-            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2021, 4, 10, 18, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2021, 4, 15, 21, 0, tzinfo=dt.timezone.utc),
             create_products=False,
         )
         # when
@@ -531,9 +536,9 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         owner = OwnerFactory(character_ownership=character_ownership)
         owner.fetch_notifications_from_esi()
         refinery = RefineryFactory(id=1000000000001, owner=owner)
-        ready_time_1 = dt.datetime(2019, 11, 21, 10, tzinfo=pytz.UTC)
-        ready_time_2 = dt.datetime(2019, 11, 21, 11, tzinfo=pytz.UTC)
-        ready_time_3 = dt.datetime(2019, 11, 21, 12, tzinfo=pytz.UTC)
+        ready_time_1 = dt.datetime(2019, 11, 21, 10, tzinfo=dt.timezone.utc)
+        ready_time_2 = dt.datetime(2019, 11, 21, 11, tzinfo=dt.timezone.utc)
+        ready_time_3 = dt.datetime(2019, 11, 21, 12, tzinfo=dt.timezone.utc)
         extraction_1 = ExtractionFactory(
             refinery=refinery,
             chunk_arrival_at=ready_time_1,

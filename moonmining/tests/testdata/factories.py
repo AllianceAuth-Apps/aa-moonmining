@@ -4,7 +4,6 @@ from typing import Generic, List, TypeVar
 
 import factory
 import factory.fuzzy
-import pytz
 
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity, EveMoon, EveType
@@ -41,7 +40,7 @@ FUZZY_START_YEAR = 2008
 def datetime_to_ldap(my_dt: dt.datetime) -> int:
     """datetime.datetime to ldap"""
     return (
-        ((my_dt - dt.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds())
+        ((my_dt - dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)).total_seconds())
         + 11644473600
     ) * 10000000
 
@@ -153,7 +152,7 @@ class CalculatedExtractionFactory(factory.Factory):
     refinery_id = factory.Sequence(lambda n: n + 1800000000001)
     status = CalculatedExtraction.Status.STARTED
     started_at = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=pytz.utc), force_microsecond=0
+        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc), force_microsecond=0
     )
 
     @factory.lazy_attribute
@@ -185,7 +184,7 @@ class MoonFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[M
         exclude = ("create_products",)
 
     products_updated_at = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=pytz.utc), force_microsecond=0
+        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc), force_microsecond=0
     )
 
     @factory.lazy_attribute
@@ -268,7 +267,7 @@ class ExtractionFactory(
         model = Extraction
 
     started_at = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=pytz.utc), force_microsecond=0
+        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc), force_microsecond=0
     )
     chunk_arrival_at = factory.LazyAttribute(
         lambda obj: obj.started_at + dt.timedelta(days=20)
@@ -318,7 +317,7 @@ class NotificationFactory(
     notification_id = factory.Sequence(lambda n: 1_900_000_001 + n)
     owner = factory.LazyAttribute(lambda obj: obj.extraction.refinery.owner)
     created = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=pytz.utc), force_microsecond=0
+        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc), force_microsecond=0
     )
     notif_type = factory.LazyAttribute(
         lambda obj: obj.extraction.status_enum.to_notification_type
@@ -424,7 +423,7 @@ class NotificationFactory2(
     notification_id = factory.Sequence(lambda n: 1_900_000_001 + n)
     owner = factory.SubFactory(OwnerFactory)
     created = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=pytz.utc), force_microsecond=0
+        dt.datetime(FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc), force_microsecond=0
     )
     last_updated = factory.LazyFunction(now)
     sender = factory.SubFactory(EveEntityCorporationFactory, name="DED")

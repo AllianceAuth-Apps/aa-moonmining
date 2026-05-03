@@ -1,8 +1,6 @@
 import datetime as dt
 from unittest.mock import patch
 
-import pytz
-
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -129,7 +127,7 @@ class TestRunRegularUpdates(TestCase):
         corporation_2002 = OwnerFactory(
             character_ownership=character_ownership_1003, last_update_ok=None
         )
-        my_date = dt.datetime(2020, 1, 11, 12, 30, tzinfo=pytz.UTC)
+        my_date = dt.datetime(2020, 1, 11, 12, 30, tzinfo=dt.timezone.utc)
         corporation_2002.last_update_at = my_date
         corporation_2002.is_enabled = False
         corporation_2002.save()

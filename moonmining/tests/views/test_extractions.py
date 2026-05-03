@@ -1,7 +1,5 @@
 import datetime as dt
 
-import pytz
-
 from django.test import RequestFactory, TestCase
 from django.utils.timezone import now
 from eveuniverse.models import EveMarketPrice, EveMoon
@@ -33,8 +31,8 @@ class TestExtractionsData(TestCase):
         cls.refinery = RefineryFactory(moon=moon)
         cls.extraction = ExtractionFactory(
             refinery=cls.refinery,
-            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
             started_by_id=1001,
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.COMPLETED,
@@ -158,8 +156,8 @@ class TestExtractionsData(TestCase):
         refinery_2 = RefineryFactory(moon=None, owner=self.refinery.owner)
         ExtractionFactory(
             refinery=refinery_2,
-            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
             started_by_id=1001,
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.COMPLETED,
@@ -205,8 +203,8 @@ class TestExtractionLedgerData(TestCase):
         cls.refinery = RefineryFactory(moon=moon)
         cls.extraction = ExtractionFactory(
             refinery=cls.refinery,
-            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=pytz.UTC),
+            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
             started_by_id=1001,
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.STARTED,

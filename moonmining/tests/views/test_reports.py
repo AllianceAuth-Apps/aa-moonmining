@@ -1,8 +1,6 @@
 import datetime as dt
 from unittest.mock import patch
 
-import pytz
-
 from django.test import TestCase
 from eveuniverse.models import EveMarketPrice, EveMoon
 
@@ -59,10 +57,10 @@ class TestReportsData(TestCase):
 
     def test_should_return_user_mining_data(self):
         # given
-        today = dt.datetime(2021, 1, 15, 12, 0, tzinfo=pytz.UTC)
-        months_1 = dt.datetime(2020, 12, 15, 12, 0, tzinfo=pytz.UTC)
-        months_2 = dt.datetime(2020, 11, 15, 12, 0, tzinfo=pytz.UTC)
-        months_3 = dt.datetime(2020, 10, 15, 12, 0, tzinfo=pytz.UTC)
+        today = dt.datetime(2021, 1, 15, 12, 0, tzinfo=dt.timezone.utc)
+        months_1 = dt.datetime(2020, 12, 15, 12, 0, tzinfo=dt.timezone.utc)
+        months_2 = dt.datetime(2020, 11, 15, 12, 0, tzinfo=dt.timezone.utc)
+        months_3 = dt.datetime(2020, 10, 15, 12, 0, tzinfo=dt.timezone.utc)
         EveMarketPrice.objects.create(eve_type_id=45506, average_price=10)
         EveMarketPrice.objects.create(eve_type_id=45494, average_price=20)
         EveOreType.objects.update_current_prices(use_process_pricing=False)
