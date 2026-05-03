@@ -12,4 +12,5 @@ coverage.xml
 .tox/
 htmlcov/
 temp/
-alliance_auth.sqlite3
+.env
+./temp/
