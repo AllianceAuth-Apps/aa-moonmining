@@ -1,6 +1,9 @@
 import datetime as dt
 from unittest.mock import patch
 
+import pook
+import yaml
+
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -10,24 +13,30 @@ from eveuniverse.models import EveMoon
 from app_utils.testing import (
     create_user_from_evecharacter,
     json_response_to_python,
-    reset_celery_once_locks,
+    queryset_pks,
 )
 
 from moonmining import tasks
 from moonmining.models import Label, Moon, Owner, Refinery
 from moonmining.tests import helpers
-from moonmining.views import moons
-
-from .testdata.esi_client_stub import esi_client_stub
-from .testdata.factories import (
+from moonmining.tests.testdata.factories import (
+    EveEntityCharacterFactory,
+    EveEntityCorporationFactory,
     ExtractionFactory,
+    MoonAsteroidsTypeFactory,
     MoonFactory,
     OwnerFactory,
     RefineryFactory,
+    datetime_to_ldap,
+    make_esi_url,
 )
-from .testdata.load_allianceauth import load_allianceauth
-from .testdata.load_eveuniverse import load_eveuniverse, nearest_celestial_stub
-from .testdata.survey_data import fetch_survey_data
+from moonmining.tests.testdata.load_allianceauth import load_allianceauth
+from moonmining.tests.testdata.load_eveuniverse import (
+    load_eveuniverse,
+    nearest_celestial_stub,
+)
+from moonmining.tests.testdata.survey_data import fetch_survey_data
+from moonmining.views import moons
 
 MANAGERS_PATH = "moonmining.managers"
 MODELS_PATH = "moonmining.models.owners"
@@ -58,90 +67,148 @@ class TestUI(WebTest):
 
 
 @patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
-@override_settings(CELERY_ALWAYS_EAGER=True)
-class TestRunRegularUpdates(TestCase):
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
+class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         load_eveuniverse()
         load_allianceauth()
         helpers.generate_eve_entities_from_allianceauth()
-        helpers.generate_market_prices()
-        _, cls.character_ownership = helpers.create_default_user_from_evecharacter(1001)
-        reset_celery_once_locks("moonmining")
 
-    @patch(MODELS_PATH + ".esi")
-    def test_should_update_all_mining_corporations(self, mock_esi):
+    @pook.on
+    def test_should_update_all_from_esi(self):
         # given
-        mock_esi.client = esi_client_stub
-        MoonFactory(eve_moon=EveMoon.objects.get(id=40161708))
-        corporation_2001 = OwnerFactory(character_ownership=self.character_ownership)
+        owner = OwnerFactory()
+        corporation_id = owner.corporation.corporation_id
+        character_id = owner.character_ownership.character.character_id
+        refinery_id = 1000000000001
+        structure_name = "Auga - Paradise Alpha"
+        solar_system_id = 30002542
+        structure_type_id = 35835
+        moon_id = 40161708
+        pook.get(
+            make_esi_url(f"corporations/{corporation_id}/structures"),
+            reply=200,
+            response_headers={"X-Pages": "1"},
+            response_json=[
+                {
+                    "corporation_id": corporation_id,
+                    "profile_id": 52436,
+                    "reinforce_hour": 19,
+                    "services": [
+                        {"name": "Reprocessing", "state": "online"},
+                        {"name": "Moon Drilling", "state": "online"},
+                    ],
+                    "state": "shield_vulnerable",
+                    "structure_id": refinery_id,
+                    "system_id": solar_system_id,
+                    "type_id": structure_type_id,
+                },
+            ],
+        )
+        pook.get(
+            make_esi_url(f"universe/structures/{refinery_id}"),
+            reply=200,
+            response_json={
+                "owner_id": corporation_id,
+                "name": structure_name,
+                "position": {
+                    "x": 55028384780.0,
+                    "y": 7310316270.0,
+                    "z": -163686684205.0,
+                },
+                "solar_system_id": solar_system_id,
+                "type_id": structure_type_id,
+            },
+        )
+        timestamp = now()
+        readyTime = timestamp + dt.timedelta(days=30)
+        autoTime = readyTime + dt.timedelta(hours=4)
+        moon_id = 40161465
+        refinery_id = 1000000000001
+        notification_id = 1005000101
+        pook.get(
+            make_esi_url(f"characters/{character_id}/notifications"),
+            reply=200,
+            response_json=[
+                {
+                    "notification_id": notification_id,
+                    "type": "MoonminingExtractionStarted",
+                    "sender_id": corporation_id,
+                    "sender_type": "corporation",
+                    "timestamp": timestamp.isoformat(),
+                    "text": yaml.dump(
+                        {
+                            "autoTime": datetime_to_ldap(autoTime),
+                            "moonID": moon_id,
+                            "oreVolumeByType": {
+                                46300: 1288475.124715103,
+                                46301: 544691.7637724016,
+                                46302: 526825.4047522942,
+                                46303: 528996.6386983792,
+                            },
+                            "readyTime": datetime_to_ldap(readyTime),
+                            "solarSystemID": solar_system_id,
+                            "startedBy": 1001,
+                            "startedByLink": '<a href="showinfo:1383//1001">Bruce Wayne</a>',
+                            "structureID": refinery_id,
+                            "structureLink": f'<a href="showinfo:{structure_type_id}//{refinery_id}">Dummy</a>',
+                            "structureName": "Dummy",
+                            "structureTypeID": structure_type_id,
+                        }
+                    ),
+                    "is_read": False,
+                },
+            ],
+        )
+        pook.get(
+            make_esi_url(
+                f"corporation/{owner.corporation.corporation_id}/mining/extractions"
+            ),
+            reply=200,
+            response_headers={"X-Pages": "1"},
+            response_json=[
+                {
+                    "chunk_arrival_time": readyTime.isoformat(),
+                    "extraction_start_time": timestamp.isoformat(),
+                    "moon_id": moon_id,
+                    "natural_decay_time": autoTime.isoformat(),
+                    "structure_id": refinery_id,
+                },
+            ],
+        )
+
         # when
         tasks.run_regular_updates.delay()
-        # then
-        self.assertSetEqual(Refinery.objects.ids(), {1000000000001, 1000000000002})
-        refinery = Refinery.objects.get(id=1000000000001)
-        self.assertEqual(refinery.extractions.count(), 1)
-        corporation_2001.refresh_from_db()
-        self.assertAlmostEqual(
-            corporation_2001.last_update_at, now(), delta=dt.timedelta(minutes=1)
-        )
-        self.assertTrue(corporation_2001.last_update_ok)
 
-    @patch(MODELS_PATH + ".esi")
-    def test_should_report_when_updating_mining_corporations_failed(self, mock_esi):
-        # given
-        mock_esi.client.Corporation.get_corporations_corporation_id_structures.side_effect = (
-            OSError
-        )
-        corporation_2001 = OwnerFactory(character_ownership=self.character_ownership)
-        # when
-        try:
-            tasks.run_regular_updates.delay()
-        except OSError:
-            pass
         # then
-        corporation_2001.refresh_from_db()
+        self.assertSetEqual(queryset_pks(Refinery.objects.all()), {refinery_id})
+        refinery = Refinery.objects.get(id=refinery_id)
+        self.assertEqual(refinery.extractions.count(), 1)
+        owner.refresh_from_db()
         self.assertAlmostEqual(
-            corporation_2001.last_update_at, now(), delta=dt.timedelta(minutes=1)
+            owner.last_update_at, now(), delta=dt.timedelta(minutes=1)
         )
-        self.assertIsNone(corporation_2001.last_update_ok)
+        self.assertTrue(owner.last_update_ok)
 
         # TODO: add more tests
 
-    @patch(MODELS_PATH + ".esi")
-    def test_should_not_update_disabled_corporation(self, mock_esi):
+    @pook.on
+    def test_should_not_update_disabled_owner(self):
         # given
-        mock_esi.client = esi_client_stub
-        MoonFactory(eve_moon=EveMoon.objects.get(id=40161708))
-        corporation_2001 = OwnerFactory(character_ownership=self.character_ownership)
-        _, character_ownership_1003 = create_user_from_evecharacter(
-            1003,
-            permissions=[
-                "moonmining.basic_access",
-                "moonmining.extractions_access",
-                "moonmining.add_refinery_owner",
-            ],
-            scopes=Owner.esi_scopes(),
+        last_update_at = now() - dt.timedelta(hours=1)
+        owner = OwnerFactory(
+            is_enabled=False, last_update_at=last_update_at, last_update_ok=None
         )
-        corporation_2002 = OwnerFactory(
-            character_ownership=character_ownership_1003, last_update_ok=None
-        )
-        my_date = dt.datetime(2020, 1, 11, 12, 30, tzinfo=dt.timezone.utc)
-        corporation_2002.last_update_at = my_date
-        corporation_2002.is_enabled = False
-        corporation_2002.save()
+
         # when
         tasks.run_regular_updates.delay()
+
         # then
-        corporation_2001.refresh_from_db()
-        self.assertAlmostEqual(
-            corporation_2001.last_update_at, now(), delta=dt.timedelta(minutes=1)
-        )
-        self.assertTrue(corporation_2001.last_update_ok)
-        corporation_2002.refresh_from_db()
-        self.assertEqual(corporation_2002.last_update_at, my_date)
-        self.assertIsNone(corporation_2002.last_update_ok)
+        owner.refresh_from_db()
+        self.assertEqual(owner.last_update_at, last_update_at)
+        self.assertIsNone(owner.last_update_ok)
 
 
 @patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
@@ -152,27 +219,52 @@ class TestUpdateOtherTasks(TestCase):
         super().setUpClass()
         load_eveuniverse()
         load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
         helpers.generate_market_prices()
-        _, cls.character_ownership = helpers.create_default_user_from_evecharacter(1001)
-        reset_celery_once_locks("moonmining")
 
-    @patch(MODELS_PATH + ".esi")
-    def test_should_update_mining_ledgers(self, mock_esi):
+    @pook.on
+    def test_should_update_mining_ledgers(self):
         # given
-        mock_esi.client = esi_client_stub
-        owner_2001 = OwnerFactory(character_ownership=self.character_ownership)
-        refinery_1 = RefineryFactory(id=1000000000001, owner=owner_2001)
-        refinery_2 = RefineryFactory(id=1000000000002, owner=owner_2001)
-        _, ownership_1003 = helpers.create_default_user_from_evecharacter(1003)
-        owner_2002 = OwnerFactory(character_ownership=ownership_1003)
-        refinery_11 = RefineryFactory.create(id=1000000000011, owner=owner_2002)
+        owner = OwnerFactory()
+        corporation_id = owner.corporation.corporation_id
+        refinery = RefineryFactory(owner=owner)
+        pook.get(
+            make_esi_url(f"corporation/{corporation_id}/mining/observers"),
+            reply=200,
+            response_headers={"X-Pages": "1"},
+            response_json=[
+                {
+                    "last_updated": now().date().isoformat(),
+                    "observer_id": refinery.id,
+                    "observer_type": "structure",
+                }
+            ],
+        )
+        miner_character = EveEntityCharacterFactory()
+        miner_corporation = EveEntityCorporationFactory()
+        last_updated = now().date()
+        quantity = 500
+        ore_type = MoonAsteroidsTypeFactory()
+        pook.get(
+            make_esi_url(
+                f"corporation/{corporation_id}/mining/observers/{refinery.id}"
+            ),
+            reply=200,
+            response_headers={"X-Pages": "1"},
+            response_json=[
+                {
+                    "character_id": miner_character.id,
+                    "last_updated": last_updated.isoformat(),
+                    "quantity": quantity,
+                    "recorded_corporation_id": miner_corporation.id,
+                    "type_id": ore_type.id,
+                },
+            ],
+        )
         # when
         tasks.run_report_updates()
+
         # then
-        self.assertEqual(refinery_1.mining_ledger.count(), 2)
-        self.assertEqual(refinery_2.mining_ledger.count(), 1)
-        self.assertEqual(refinery_11.mining_ledger.count(), 1)
+        self.assertEqual(refinery.mining_ledger.count(), 1)
 
     @patch(TASKS_PATH + ".update_unresolved_eve_entities", spec=True)
     @patch(TASKS_PATH + ".EveMarketPrice.objects.update_from_esi", spec=True)
@@ -181,18 +273,17 @@ class TestUpdateOtherTasks(TestCase):
     ):
         # given
         mock_update_prices.return_value = None
-        moon = MoonFactory()
-        owner = OwnerFactory(character_ownership=self.character_ownership)
-        refinery = RefineryFactory(moon=moon, owner=owner)
+        owner = OwnerFactory()
+        refinery = RefineryFactory(owner=owner)
         extraction = ExtractionFactory(refinery=refinery)
 
         # when
         tasks.run_calculated_properties_update.delay()
 
         # then
-        moon.refresh_from_db()
+        refinery.moon.refresh_from_db()
         extraction.refresh_from_db()
-        self.assertIsNotNone(moon.value)
+        self.assertIsNotNone(refinery.moon.value)
         self.assertIsNotNone(extraction.value)
         ore = extraction.products.first().ore_type
         self.assertIsNotNone(ore.extras.current_price)

@@ -593,7 +593,12 @@ class MoonNotificationFactory(
             "started_at",
         )
 
-    started_at = factory.fuzzy.FuzzyDateTime(now() - dt.timedelta(days=30))
+    class Params:
+        started_by = None
+
+    started_at = factory.fuzzy.FuzzyDateTime(
+        now() - dt.timedelta(days=30), force_microsecond=0
+    )
     chunk_arrival_at = factory.LazyAttribute(
         lambda o: o.started_at + dt.timedelta(days=20)
     )
@@ -614,11 +619,11 @@ class MoonNotificationFactory(
     def timestamp(self) -> dt.datetime:
         match NotificationType(self.notif_type):
             case NotificationType.MOONMINING_EXTRACTION_STARTED:
-                return self.started_at
+                return self.started_at.replace(microsecond=0)
 
             case NotificationType.MOONMINING_EXTRACTION_CANCELLED:
                 return factory.fuzzy.FuzzyDateTime(
-                    self.started_at, self.chunk_arrival_at
+                    self.started_at, self.chunk_arrival_at, force_microsecond=0
                 ).fuzz()
 
             case NotificationType.MOONMINING_EXTRACTION_FINISHED:
@@ -626,11 +631,14 @@ class MoonNotificationFactory(
 
             case NotificationType.MOONMINING_LASER_FIRED:
                 return factory.fuzzy.FuzzyDateTime(
-                    self.chunk_arrival_at, self.auto_fracture_at
+                    self.chunk_arrival_at, self.auto_fracture_at, force_microsecond=0
                 ).fuzz()
 
             case NotificationType.MOONMINING_AUTOMATIC_FRACTURE:
-                return self.auto_fracture_at
+                return self.auto_fracture_at.replace(microsecond=0)
+
+            case _:
+                raise ValueError(f"invalid notif type: {self.notif_type}")
 
     @factory.lazy_attribute
     def details(self) -> dict:
@@ -657,7 +665,7 @@ class MoonNotificationFactory(
 
         match NotificationType(self.notif_type):
             case NotificationType.MOONMINING_EXTRACTION_STARTED:
-                started_by = EveEntityCharacterFactory()
+                started_by = self.started_by or EveEntityCharacterFactory()
                 data.update(
                     {
                         "startedBy": started_by.id,

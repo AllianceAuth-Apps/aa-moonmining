@@ -9,15 +9,12 @@ from eveuniverse.models import EveMarketPrice, EveType
 from app_utils.testing import NoSocketsTestCase
 
 from moonmining.models import Moon
-
-from .testdata.esi_client_stub import esi_client_stub
-from .testdata.load_eveuniverse import load_eveuniverse
+from moonmining.tests.testdata.load_eveuniverse import load_eveuniverse
 
 MODELS_PATH = "moonmining.models.owners"
 PACKAGE_PATH = "moonmining.management.commands"
 
 
-@patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 class TestImportMoons(NoSocketsTestCase):
     @classmethod
@@ -30,9 +27,8 @@ class TestImportMoons(NoSocketsTestCase):
         self.out = StringIO()
 
     @patch(PACKAGE_PATH + ".moonmining_import_moons.is_esi_online", new=lambda: True)
-    def test_should_create_moons(self, mock_esi):
+    def test_should_create_moons(self):
         # given
-        mock_esi.client = esi_client_stub
         tungsten = EveType.objects.get(id=16637)
         mercury = EveType.objects.get(id=16646)
         evaporite_deposits = EveType.objects.get(id=16635)
@@ -61,18 +57,18 @@ class TestImportMoons(NoSocketsTestCase):
         self.assertEqual(m2.products.get(ore_type_id=46678).amount, 0.29)
 
     @patch(PACKAGE_PATH + ".moonmining_import_moons.is_esi_online", new=lambda: True)
-    def test_should_abort_when_input_file_not_found(self, mock_esi):
+    def test_should_abort_when_input_file_not_found(self):
         # given
-        mock_esi.client = esi_client_stub
+
         import_file = Path(__file__).parent / "testdata" / "unknown_file.xyz"
         # when/then
         with self.assertRaises(CommandError):
             call_command("moonmining_import_moons", str(import_file), stdout=self.out)
 
     @patch(PACKAGE_PATH + ".moonmining_import_moons.is_esi_online", new=lambda: False)
-    def test_should_abort_when_esi_is_offline(self, mock_esi):
+    def test_should_abort_when_esi_is_offline(self):
         # given
-        mock_esi.client = esi_client_stub
+
         # when/then
         with self.assertRaises(CommandError):
             call_command(

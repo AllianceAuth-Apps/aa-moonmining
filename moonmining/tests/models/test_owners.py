@@ -13,7 +13,6 @@ from eveuniverse.tests.testdata.factories_2 import EveMoonFactory
 from app_utils.testdata_factories import UserFactory
 from app_utils.testing import NoSocketsTestCase, queryset_pks
 
-from moonmining.core import CalculatedExtraction
 from moonmining.models import (
     Extraction,
     ExtractionProduct,
@@ -25,7 +24,6 @@ from moonmining.models import (
 )
 from moonmining.tests import helpers
 from moonmining.tests.testdata.factories import (
-    CalculatedExtractionFactory,
     EveEntityCharacterFactory,
     EveEntityCorporationFactory,
     ExtractionFactory,
@@ -435,24 +433,20 @@ class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_create_started_extraction_with_products(self):
         # given
-        refinery_id = 1000000000001
-        chunk_arrival_at = dt.datetime(2021, 4, 15, 18, 0, tzinfo=dt.timezone.utc)
+        started_at = now().replace(microsecond=0) - dt.timedelta(hours=1)
+        chunk_arrival_at = started_at + dt.timedelta(days=3)
+        auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
 
         owner = OwnerFactory()
-        refinery = RefineryFactory(id=refinery_id, owner=owner)
-        moon_id = refinery.moon.eve_moon.id
+        refinery = RefineryFactory(owner=owner)
         started_by = EveEntityCharacterFactory()
-        calculated_extraction = CalculatedExtractionFactory(
-            status=CalculatedExtraction.Status.STARTED,
+        notif = MoonNotificationFactory(
+            auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
-            started_by=started_by.id,
-            refinery_id=refinery_id,
-        )
-        NotificationFactory2(
-            extraction=calculated_extraction,
-            structure_name=refinery.name,
-            moon_id=moon_id,
-            owner=owner,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=started_at,
+            started_by=started_by,
         )
 
         pook.get(
@@ -464,10 +458,10 @@ class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
             response_json=[
                 {
                     "chunk_arrival_time": chunk_arrival_at.isoformat(),
-                    "extraction_start_time": "2021-04-01T12:00:00Z",
-                    "moon_id": moon_id,
-                    "natural_decay_time": "2021-04-15T21:00:00Z",
-                    "structure_id": refinery_id,
+                    "extraction_start_time": started_at.isoformat(),
+                    "moon_id": refinery.moon.eve_moon.id,
+                    "natural_decay_time": auto_fracture_at.isoformat(),
+                    "structure_id": refinery.id,
                 },
             ],
         )
@@ -480,17 +474,10 @@ class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
         extraction: Extraction = refinery.extractions.first()
         self.assertEqual(extraction.status, Extraction.Status.STARTED)
         self.assertEqual(extraction.chunk_arrival_at, chunk_arrival_at)
+        qs: QuerySet[ExtractionProduct] = extraction.products.all()
+        products_got = {str(x.ore_type.id): x.volume for x in qs}
+        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
         self.assertEqual(extraction.started_by, started_by)
-        self.assertEqual(
-            extraction.products.count(), len(calculated_extraction.products)
-        )
-        products_want = {
-            x.ore_type_id: x.volume for x in calculated_extraction.products
-        }
-        products_got = {
-            x["ore_type_id"]: x["volume"] for x in extraction.products.values()
-        }
-        self.assertDictEqual(products_got, products_want)
         self.assertIsNotNone(extraction.value)
 
 
@@ -1104,15 +1091,3 @@ class TestRefinery(NoSocketsTestCase):
         self.assertEqual(ex_1.status_2, Extraction.Status.STARTED)
         ex_2.refresh_from_db()
         self.assertEqual(ex_2.status_2, Extraction.Status.CANCELED)
-
-
-class TestPlayground(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-
-    def test_playground(self):
-        notif = MoonNotificationFactory()
-        self.assertTrue(notif)
