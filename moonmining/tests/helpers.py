@@ -1,6 +1,8 @@
 import json
 
+from django.core.cache import cache
 from django.http import JsonResponse
+from django.test import TestCase
 from eveuniverse.models import EveEntity, EveMarketPrice, EveType
 
 from allianceauth.eveonline.models import EveCharacter
@@ -80,3 +82,10 @@ def json_response_to_python_2(response: JsonResponse, data_key="data") -> object
 def json_response_to_dict_2(response: JsonResponse, key="id", data_key="data") -> dict:
     """Convert JSON response into dict by given key."""
     return {x[key]: x for x in json_response_to_python_2(response, data_key)}
+
+
+class TestCaseWithClearCache(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cache.clear()

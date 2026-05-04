@@ -2,7 +2,7 @@
 
 import datetime as dt
 from collections import defaultdict
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import yaml
 
@@ -319,6 +319,7 @@ class Owner(models.Model):
         """Creates new extractions from ESI for current owner."""
         extractions_by_refinery = self._fetch_extractions_from_esi()
         self._update_or_create_extractions(extractions_by_refinery)
+        self._identify_canceled_extractions(extractions_by_refinery)
 
     def _fetch_extractions_from_esi(self):
         logger.info("%s: Fetching extractions from ESI...", self)
@@ -341,14 +342,19 @@ class Owner(models.Model):
                 refinery = self.refineries.get(pk=refinery_id)
             except Refinery.DoesNotExist:
                 continue
+
             new_extractions_count += refinery.create_extractions_from_esi_response(
                 refinery_extractions
             )
-            refinery.cancel_started_extractions_missing_from_list(
-                [row["extraction_start_time"] for row in refinery_extractions]
-            )
         if new_extractions_count:
             logger.info("%s: Created %d new extractions.", self, new_extractions_count)
+
+    def _identify_canceled_extractions(self, extractions_by_refinery: dict) -> None:
+        refinery: Refinery
+        for refinery in self.refineries.all():
+            refinery_extractions = extractions_by_refinery.get(refinery.id, [])
+            start_times = [row["extraction_start_time"] for row in refinery_extractions]
+            refinery.cancel_started_extractions_missing_from_list(start_times)
 
     def update_extractions_from_notifications(self):
         """Create or update extractions from notifications."""
@@ -569,12 +575,12 @@ class Refinery(models.Model):
         return len(new_extractions)
 
     def cancel_started_extractions_missing_from_list(
-        self, started_at_list: List[dt.datetime]
+        self, started_at_list: Iterable[dt.datetime]
     ) -> int:
         """Cancel started extractions that are not included in given list."""
         canceled_extractions_qs = self.extractions.filter(
             status=Extraction.Status.STARTED
-        ).exclude(started_at__in=started_at_list)
+        ).exclude(started_at__in=list(started_at_list))
         canceled_extractions_count = canceled_extractions_qs.count()
         if canceled_extractions_count:
             logger.info(
@@ -588,6 +594,7 @@ class Refinery(models.Model):
         return canceled_extractions_count
 
 
+# TODO: Move to refinery object
 def _update_extractions_for_refinery(owner: Owner, refinery: Refinery):
     notifications_for_refinery = owner.notifications.filter(
         details__structureID=refinery.id

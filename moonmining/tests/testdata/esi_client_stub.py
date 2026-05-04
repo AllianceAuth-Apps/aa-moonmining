@@ -10,7 +10,7 @@ def load_test_data():
         return json.load(fp)
 
 
-_esi_data = load_test_data()
+esi_data = load_test_data()
 
 _endpoints = [
     EsiEndpoint(
@@ -50,5 +50,5 @@ _endpoints = [
     ),
 ]
 
-esi_client_stub = EsiClientStub(_esi_data, endpoints=_endpoints)
-esi_client_error_stub = EsiClientStub(_esi_data, endpoints=_endpoints, http_error=True)
+esi_client_stub = EsiClientStub(esi_data, endpoints=_endpoints)
+esi_client_error_stub = EsiClientStub(esi_data, endpoints=_endpoints, http_error=True)

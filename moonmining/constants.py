@@ -7,12 +7,14 @@ class EveCategoryId(IntEnum):
     """An Eve category ID."""
 
     ASTEROID = 25
+    STRUCTURE = 65
 
 
 class EveGroupId(IntEnum):
     """An Eve group ID."""
 
     MOON = 8
+    CITADEL = 1657
     MINERAL = 18
     REFINERY = 1406
     UBIQUITOUS_MOON_ASTEROIDS = 1884
