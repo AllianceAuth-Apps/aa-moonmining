@@ -77,7 +77,7 @@ class TestOwner(NoSocketsTestCase):
             owner.fetch_token()
 
 
-class TestOwnerFetchNotifications(helpers.TestCaseWithClearCache):
+class TestOwner_FetchNotifications(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_create_new_notifications_from_esi(self):
         # given
@@ -149,7 +149,7 @@ class TestOwnerFetchNotifications(helpers.TestCaseWithClearCache):
 
 @patch(MODELS_PATH + ".owners.notify_admins_throttled", lambda *args, **kwargs: None)
 @patch(MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial")
-class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
+class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_create_new_refineries_from_scratch(
         self, mock_nearest_celestial: Mock
@@ -409,7 +409,7 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
         self.assertEqual(structure_2.name, structure_2_name)
 
 
-class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
+class TestOwner_UpdateExtractions(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_create_started_extraction_with_products(self):
         # given
@@ -461,7 +461,7 @@ class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
         self.assertGreater(extraction.value, 0)
 
 
-class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
+class TestOwner_UpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_create_new_extractions(self):
         class Case(NamedTuple):
@@ -602,180 +602,7 @@ class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
         self.assertTrue(started_extraction.canceled_at)
 
 
-class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
-    def test_should_update_started_extraction(self):
-        # given
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
-        )
-        notif = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        extraction.refresh_from_db()
-        self.assertEqual(extraction.status, Extraction.Status.STARTED)
-        qs: QuerySet[ExtractionProduct] = extraction.products.all()
-        products_got = {str(x.ore_type.id): x.volume for x in qs}
-        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
-        self.assertEqual(extraction.started_by.id, notif.details["startedBy"])
-
-    def test_should_cancel_extraction_and_update_products(self):
-        # given
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
-        )
-        notif_started = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        notif_canceled = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_CANCELLED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        extraction.refresh_from_db()
-        self.assertEqual(extraction.status, Extraction.Status.CANCELED)
-        self.assertEqual(
-            extraction.canceled_by.id, notif_canceled.details["cancelledBy"]
-        )
-        qs: QuerySet[ExtractionProduct] = extraction.products.all()
-        products_got = {str(x.ore_type.id): x.volume for x in qs}
-        self.assertDictEqual(products_got, notif_started.details["oreVolumeByType"])
-
-    def test_should_update_ready_extraction(self):
-        # given
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.READY
-        )
-        MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        notif = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        extraction.refresh_from_db()
-        self.assertEqual(extraction.status, Extraction.Status.READY)
-        qs: QuerySet[ExtractionProduct] = extraction.products.all()
-        products_got = {str(x.ore_type.id): x.volume for x in qs}
-        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
-
-    def test_should_update_completed_extraction_when_laser_fired(self):
-        # given
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.COMPLETED
-        )
-        MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        notif = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_LASER_FIRED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        extraction.refresh_from_db()
-        self.assertEqual(extraction.status, Extraction.Status.COMPLETED)
-        qs: QuerySet[ExtractionProduct] = extraction.products.all()
-        products_got = {str(x.ore_type.id): x.volume for x in qs}
-        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
-        self.assertEqual(extraction.fractured_by.id, notif.details["firedBy"])
-
-    def test_should_update_completed_extraction_when_auto_fracture(self):
-        # given
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.COMPLETED
-        )
-        MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        notif = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_AUTOMATIC_FRACTURE,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        extraction.refresh_from_db()
-        self.assertEqual(extraction.status, Extraction.Status.COMPLETED)
-        qs: QuerySet[ExtractionProduct] = extraction.products.all()
-        products_got = {str(x.ore_type.id): x.volume for x in qs}
-        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
-        self.assertIsNone(extraction.fractured_by)
-
+class TestOwner_UpdateExtractionsFromNotifications(NoSocketsTestCase):
     def test_should_cancel_extraction_and_update_another(self):
         # given
         owner = OwnerFactory2()
@@ -818,75 +645,8 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         extraction_2.refresh_from_db()
         self.assertEqual(extraction_2.started_by.id, notif.details["startedBy"])
 
-    def test_should_update_refinery_with_moon_from_notification_when_not_set(self):
-        # given
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(moon=None, owner=owner)
-        em = EveMoonFactory()
-        MoonNotificationFactory2(refinery=refinery, eve_moon=em)
 
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        refinery.refresh_from_db()
-        self.assertEqual(refinery.moon.eve_moon, em)
-
-    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", True)
-    def test_should_update_moon_products_when_no_survey_exists(self):
-        # given
-        moon = MoonFactory2()
-        moon.products.all().delete()
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner, moon=moon)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
-        )
-        notif = MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        total = sum(x for x in notif.details["oreVolumeByType"].values())
-        want = {
-            id: round(volume / total, 2)
-            for id, volume in notif.details["oreVolumeByType"].items()
-        }
-        qs: QuerySet[MoonProduct] = moon.products.all()
-        got = {str(x.ore_type.id): round(x.amount, 2) for x in qs}
-        self.assertDictEqual(got, want)
-
-    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", False)
-    def test_should_not_update_moon_products_when_survey_exists(self):
-        # given
-        moon = MoonFactory2()
-        moon.products.all().delete()
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner, moon=moon)
-        extraction = ExtractionFactory2(
-            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
-        )
-        MoonNotificationFactory2(
-            auto_fracture_at=extraction.auto_fracture_at,
-            chunk_arrival_at=extraction.chunk_arrival_at,
-            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
-            refinery=refinery,
-            started_at=extraction.started_at,
-        )
-        # when
-        owner.update_extractions_from_notifications()
-
-        # then
-        self.assertEqual(moon.products.count(), 0)
-
-
-class TestOwnerUpdateMiningLedger(helpers.TestCaseWithClearCache):
+class TestOwner_UpdateMiningLedger(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_return_observer_ids_from_esi(self):
         # given
@@ -1012,7 +772,243 @@ class TestOwnerUpdateMiningLedger(helpers.TestCaseWithClearCache):
         self.assertDictEqual(got, want)
 
 
-class TestRefinery(NoSocketsTestCase):
+class TestRefinery_UpdateExtractionsFromNotifications(NoSocketsTestCase):
+    def test_should_update_started_extraction(self):
+        # given
+        refinery = RefineryFactory2()
+        extraction = ExtractionFactory2(
+            refinery=refinery,
+            create_products=False,
+            status=Extraction.Status.STARTED,
+        )
+        notif = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        extraction.refresh_from_db()
+        self.assertEqual(extraction.status, Extraction.Status.STARTED)
+        qs: QuerySet[ExtractionProduct] = extraction.products.all()
+        products_got = {str(x.ore_type.id): x.volume for x in qs}
+        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
+        self.assertEqual(extraction.started_by.id, notif.details["startedBy"])
+
+    def test_should_cancel_extraction_and_update_products(self):
+        # given
+        refinery = RefineryFactory2()
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
+        )
+        notif_started = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        notif_canceled = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_CANCELLED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        extraction.refresh_from_db()
+        self.assertEqual(extraction.status, Extraction.Status.CANCELED)
+        self.assertEqual(
+            extraction.canceled_by.id, notif_canceled.details["cancelledBy"]
+        )
+        qs: QuerySet[ExtractionProduct] = extraction.products.all()
+        products_got = {str(x.ore_type.id): x.volume for x in qs}
+        self.assertDictEqual(products_got, notif_started.details["oreVolumeByType"])
+
+    def test_should_update_ready_extraction(self):
+        # given
+        refinery = RefineryFactory2()
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.READY
+        )
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        notif = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        extraction.refresh_from_db()
+        self.assertEqual(extraction.status, Extraction.Status.READY)
+        qs: QuerySet[ExtractionProduct] = extraction.products.all()
+        products_got = {str(x.ore_type.id): x.volume for x in qs}
+        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
+
+    def test_should_update_completed_extraction_when_laser_fired(self):
+        # given
+        refinery = RefineryFactory2()
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.COMPLETED
+        )
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        notif = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_LASER_FIRED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        extraction.refresh_from_db()
+        self.assertEqual(extraction.status, Extraction.Status.COMPLETED)
+        qs: QuerySet[ExtractionProduct] = extraction.products.all()
+        products_got = {str(x.ore_type.id): x.volume for x in qs}
+        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
+        self.assertEqual(extraction.fractured_by.id, notif.details["firedBy"])
+
+    def test_should_update_completed_extraction_when_auto_fracture(self):
+        # given
+        refinery = RefineryFactory2()
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.COMPLETED
+        )
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        notif = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_AUTOMATIC_FRACTURE,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        extraction.refresh_from_db()
+        self.assertEqual(extraction.status, Extraction.Status.COMPLETED)
+        qs: QuerySet[ExtractionProduct] = extraction.products.all()
+        products_got = {str(x.ore_type.id): x.volume for x in qs}
+        self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
+        self.assertIsNone(extraction.fractured_by)
+
+    def test_should_update_refinery_with_moon_from_notification_when_not_set(self):
+        # given
+        refinery = RefineryFactory2(moon=None)
+        em = EveMoonFactory()
+        MoonNotificationFactory2(refinery=refinery, eve_moon=em)
+
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        refinery.refresh_from_db()
+        self.assertEqual(refinery.moon.eve_moon, em)
+
+    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", True)
+    def test_should_update_moon_products_when_no_survey_exists(self):
+        # given
+        moon = MoonFactory2()
+        moon.products.all().delete()
+        refinery = RefineryFactory2(moon=moon)
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
+        )
+        notif = MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        total = sum(x for x in notif.details["oreVolumeByType"].values())
+        want = {
+            id: round(volume / total, 2)
+            for id, volume in notif.details["oreVolumeByType"].items()
+        }
+        qs: QuerySet[MoonProduct] = moon.products.all()
+        got = {str(x.ore_type.id): round(x.amount, 2) for x in qs}
+        self.assertDictEqual(got, want)
+
+    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", False)
+    def test_should_not_update_moon_products_when_survey_exists(self):
+        # given
+        moon = MoonFactory2()
+        moon.products.all().delete()
+        refinery = RefineryFactory2(moon=moon)
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
+        )
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
+        )
+        # when
+        refinery.update_extractions_from_notifications()
+
+        # then
+        self.assertEqual(moon.products.count(), 0)
+
+
+class TestRefinery_CancelStartedExtractionsMissingFromList(NoSocketsTestCase):
     def test_should_cancel_extraction_when_start_time_not_given(self):
         # given
         refinery = RefineryFactory2()
