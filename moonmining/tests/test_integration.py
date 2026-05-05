@@ -1,93 +1,76 @@
 import datetime as dt
-from unittest.mock import patch
+from http import HTTPStatus
+from unittest.mock import Mock, patch
 
 import pook
 import yaml
 
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
-from django_webtest import WebTest
-from eveuniverse.models import EveMoon
+from eveuniverse.models import EveSolarSystem
 from eveuniverse.tests.testdata.factories_2 import (
     EveEntityCharacterFactory,
     EveEntityCorporationFactory,
+    EveMoonFactory,
+    MoonTypeFactory,
 )
 
-from app_utils.testing import (
-    create_user_from_evecharacter,
-    json_response_to_python,
-    queryset_pks,
-)
+from app_utils.testing import NoSocketsTestCase, queryset_pks
 
 from moonmining import tasks
-from moonmining.models import Label, Moon, Owner, Refinery
+from moonmining.models import Refinery
 from moonmining.tests import helpers
 from moonmining.tests.helpers import datetime_to_ldap
-from moonmining.tests.testdata.factories import (
-    ExtractionFactory,
-    MoonFactory,
-    OwnerFactory,
-    RefineryFactory,
-)
-from moonmining.tests.testdata.factories_2 import MoonAsteroidsTypeFactory, make_esi_url
-from moonmining.tests.testdata.load_allianceauth import load_allianceauth
-from moonmining.tests.testdata.load_eveuniverse import (
-    load_eveuniverse,
-    nearest_celestial_stub,
+from moonmining.tests.testdata.factories_2 import (
+    EveOreTypeFactory,
+    ExtractionFactory2,
+    MoonAsteroidsTypeFactory,
+    OwnerFactory2,
+    RefineryFactory2,
+    RefineryTypeFactory,
+    UserMainMemberFactory,
+    UserMainOwnerFactory,
+    make_esi_url,
 )
 from moonmining.tests.testdata.survey_data import fetch_survey_data
-from moonmining.views import moons
 
 MANAGERS_PATH = "moonmining.managers"
 MODELS_PATH = "moonmining.models.owners"
 TASKS_PATH = "moonmining.tasks"
-VIEWS_PATH = "moonmining.views.views_all"
 
 
-class TestUI(WebTest):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        cls.user, cls.character_ownership = create_user_from_evecharacter(
-            1001,
-            permissions=["moonmining.basic_access", "moonmining.extractions_access"],
-        )
-
+class TestUI(TestCase):
     def test_should_open_extractions(self):
         # given
-        self.app.set_user(self.user)
+        user = UserMainOwnerFactory()
+        self.client.force_login(user)
         # when
-        index = self.app.get(reverse("moonmining:extractions"))
+        index = self.client.get(reverse("moonmining:extractions"))
         # then
-        self.assertEqual(index.status_code, 200)
+        self.assertEqual(index.status_code, HTTPStatus.OK)
 
     # TODO: Add more UI tests
 
 
-@patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
+@patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial")
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
     @pook.on
-    def test_should_update_all_from_esi(self):
+    def test_should_update_all_from_esi(self, mock_nearest_celestial: Mock):
         # given
-        owner = OwnerFactory()
+        owner = OwnerFactory2()
         corporation_id = owner.corporation.corporation_id
         character_id = owner.character_ownership.character.character_id
+        eve_moon = EveMoonFactory()
+        mock_nearest_celestial.return_value = EveSolarSystem.NearestCelestial(
+            eve_type=MoonTypeFactory(),
+            eve_object=eve_moon,
+            distance=123,
+        )
         refinery_id = 1000000000001
         structure_name = "Auga - Paradise Alpha"
-        solar_system_id = 30002542
-        structure_type_id = 35835
-        moon_id = 40161708
+        structure_type = RefineryTypeFactory()
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
             reply=200,
@@ -103,8 +86,8 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
                     ],
                     "state": "shield_vulnerable",
                     "structure_id": refinery_id,
-                    "system_id": solar_system_id,
-                    "type_id": structure_type_id,
+                    "system_id": eve_moon.eve_planet.eve_solar_system.id,
+                    "type_id": structure_type.id,
                 },
             ],
         )
@@ -119,16 +102,16 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
                     "y": 7310316270.0,
                     "z": -163686684205.0,
                 },
-                "solar_system_id": solar_system_id,
-                "type_id": structure_type_id,
+                "solar_system_id": eve_moon.eve_planet.eve_solar_system.id,
+                "type_id": structure_type.id,
             },
         )
         timestamp = now()
         readyTime = timestamp + dt.timedelta(days=30)
         autoTime = readyTime + dt.timedelta(hours=4)
-        moon_id = 40161465
         refinery_id = 1000000000001
         notification_id = 1005000101
+        started_by = EveEntityCharacterFactory()
         pook.get(
             make_esi_url(f"characters/{character_id}/notifications"),
             reply=200,
@@ -136,27 +119,27 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
                 {
                     "notification_id": notification_id,
                     "type": "MoonminingExtractionStarted",
-                    "sender_id": corporation_id,
+                    "sender_id": EveEntityCorporationFactory().id,
                     "sender_type": "corporation",
                     "timestamp": timestamp.isoformat(),
                     "text": yaml.dump(
                         {
                             "autoTime": datetime_to_ldap(autoTime),
-                            "moonID": moon_id,
+                            "moonID": eve_moon.id,
                             "oreVolumeByType": {
-                                46300: 1288475.124715103,
-                                46301: 544691.7637724016,
-                                46302: 526825.4047522942,
-                                46303: 528996.6386983792,
+                                EveOreTypeFactory().id: 1288475.124715103,
+                                EveOreTypeFactory().id: 544691.7637724016,
+                                EveOreTypeFactory().id: 526825.4047522942,
+                                EveOreTypeFactory().id: 528996.6386983792,
                             },
                             "readyTime": datetime_to_ldap(readyTime),
-                            "solarSystemID": solar_system_id,
-                            "startedBy": 1001,
-                            "startedByLink": '<a href="showinfo:1383//1001">Bruce Wayne</a>',
+                            "solarSystemID": eve_moon.eve_planet.eve_solar_system.id,
+                            "startedBy": started_by.id,
+                            "startedByLink": f'<a href="showinfo:1383//{started_by.id}">{started_by.name}</a>',
                             "structureID": refinery_id,
-                            "structureLink": f'<a href="showinfo:{structure_type_id}//{refinery_id}">Dummy</a>',
+                            "structureLink": f'<a href="showinfo:{structure_type.id}//{refinery_id}">Dummy</a>',
                             "structureName": "Dummy",
-                            "structureTypeID": structure_type_id,
+                            "structureTypeID": structure_type.id,
                         }
                     ),
                     "is_read": False,
@@ -173,7 +156,7 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
                 {
                     "chunk_arrival_time": readyTime.isoformat(),
                     "extraction_start_time": timestamp.isoformat(),
-                    "moon_id": moon_id,
+                    "moon_id": eve_moon.id,
                     "natural_decay_time": autoTime.isoformat(),
                     "structure_id": refinery_id,
                 },
@@ -196,10 +179,10 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
         # TODO: add more tests
 
     @pook.on
-    def test_should_not_update_disabled_owner(self):
+    def test_should_not_update_disabled_owner(self, mock_nearest_celestial: Mock):
         # given
         last_update_at = now() - dt.timedelta(hours=1)
-        owner = OwnerFactory(
+        owner = OwnerFactory2(
             is_enabled=False, last_update_at=last_update_at, last_update_ok=None
         )
 
@@ -212,22 +195,14 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
         self.assertIsNone(owner.last_update_ok)
 
 
-@patch(MODELS_PATH + ".EveSolarSystem.nearest_celestial", new=nearest_celestial_stub)
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestUpdateOtherTasks(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_market_prices()
-
+class TestUpdateOtherTasks(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_update_mining_ledgers(self):
         # given
-        owner = OwnerFactory()
+        owner = OwnerFactory2()
         corporation_id = owner.corporation.corporation_id
-        refinery = RefineryFactory(owner=owner)
+        refinery = RefineryFactory2(owner=owner)
         pook.get(
             make_esi_url(f"corporation/{corporation_id}/mining/observers"),
             reply=200,
@@ -274,9 +249,9 @@ class TestUpdateOtherTasks(TestCase):
     ):
         # given
         mock_update_prices.return_value = None
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
-        extraction = ExtractionFactory(refinery=refinery)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        extraction = ExtractionFactory2(refinery=refinery)
 
         # when
         tasks.run_calculated_properties_update.delay()
@@ -291,91 +266,80 @@ class TestUpdateOtherTasks(TestCase):
         self.assertTrue(mock_eve_entities_task.si.called)
 
 
-class TestProcessSurveyInput(TestCase):
+class TestProcessSurveyInput(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        cls.user, cls.character_ownership = create_user_from_evecharacter(
-            1001,
-            permissions=[
-                "moonmining.basic_access",
-                "moonmining.extractions_access",
-                "moonmining.add_refinery_owner",
-            ],
-            scopes=Owner.esi_scopes(),
-        )
         cls.survey_data = fetch_survey_data()
+
+    @patch(MANAGERS_PATH + ".notify")
+    def test_notification_on_success(self, mock_notify: Mock):
+        # given
+        user = UserMainMemberFactory()
+        EveMoonFactory(
+            id=40161708,
+            name="Auga V - Moon 1",
+            eve_planet__id=40161707,
+            eve_planet__name="Auga V",
+            eve_planet__eve_solar_system__id=30002542,
+            eve_planet__eve_solar_system__name="Auga",
+        )
+        EveMoonFactory(
+            id=40161709,
+            name="Auga V - Moon 2",
+            eve_planet__id=40161708,
+            eve_planet__name="Auga V",
+            eve_planet__eve_solar_system__id=30002542,
+            eve_planet__eve_solar_system__name="Auga",
+        )
+        EveOreTypeFactory(id=45492, name="Bitumens")
+        EveOreTypeFactory(id=45494, name="Cobaltite")
+        EveOreTypeFactory(id=45506, name="Cinnabar")
+        EveOreTypeFactory(id=46676, name="Cubic Bistot")
+        EveOreTypeFactory(id=46678, name="Flawless Arkonor")
+        EveOreTypeFactory(id=46689, name="Stable Veldspar")
+
+        # when
+        result = tasks.process_survey_input(self.survey_data.get(2), user.pk)
+
+        # then
+        self.assertTrue(result)
+        self.assertTrue(mock_notify.called)
+        _, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs["user"], user)
+        self.assertEqual(kwargs["level"], "success")
 
     @patch(MANAGERS_PATH + ".notify", new=lambda *args, **kwargs: None)
     def test_should_handle_bad_data_orderly(self):
+        # given
+        EveMoonFactory(
+            id=40131695,
+            name="Helgatild IX - Moon 12",
+            eve_planet__id=40131683,
+            eve_planet__name="Helgatild IX",
+            eve_planet__eve_solar_system__id=30002063,
+            eve_planet__eve_solar_system__name="Helgatild",
+        )
+        EveOreTypeFactory(id=45495, name="Euxenite")
+        EveOreTypeFactory(id=45491, name="Sylvite")
+        EveOreTypeFactory(id=45510, name="Xenotime")
+
         # when
         result = tasks.process_survey_input(self.survey_data.get(3))
         # then
         self.assertFalse(result)
 
     @patch(MANAGERS_PATH + ".notify")
-    def test_notification_on_success(self, mock_notify):
-        result = tasks.process_survey_input(self.survey_data.get(2), self.user.pk)
-        self.assertTrue(result)
-        self.assertTrue(mock_notify.called)
-        _, kwargs = mock_notify.call_args
-        self.assertEqual(kwargs["user"], self.user)
-        self.assertEqual(kwargs["level"], "success")
+    def test_notification_on_error_1(self, mock_notify: Mock):
+        # given
+        user = UserMainMemberFactory()
 
-    @patch(MANAGERS_PATH + ".notify")
-    def test_notification_on_error_1(self, mock_notify):
-        result = tasks.process_survey_input("invalid input", self.user.pk)
+        # when
+        result = tasks.process_survey_input("invalid input", user.pk)
+
+        # then
         self.assertFalse(result)
         self.assertTrue(mock_notify.called)
         _, kwargs = mock_notify.call_args
-        self.assertEqual(kwargs["user"], self.user)
+        self.assertEqual(kwargs["user"], user)
         self.assertEqual(kwargs["level"], "danger")
-
-
-class TestMoonsDataFdd(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.factory = RequestFactory()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_market_prices()
-        cls.moon = MoonFactory(eve_moon=EveMoon.objects.get(id=40161708))
-        cls.moon.label = Label.objects.create(name="Dummy")
-        cls.moon.save()
-        MoonFactory(eve_moon=EveMoon.objects.get(id=40131695))
-        MoonFactory(eve_moon=EveMoon.objects.get(id=40161709))
-
-    def test_should_return_fdd_for_all_moons(self):
-        # given
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=["moonmining.basic_access", "moonmining.view_all_moons"],
-            scopes=Owner.esi_scopes(),
-        )
-        moon = Moon.objects.get(pk=40131695)
-        RefineryFactory(moon=moon)
-        self.client.force_login(user)
-        # when
-        path = (
-            f"/moonmining/moons_fdd_data/{moons.MoonsCategory.ALL.value}"
-            "?columns=alliance_name,corporation_name,region_name,"
-            "constellation_name,solar_system_name,rarity_class_str,label_name,"
-            "has_refinery_str,has_extraction_str,invalid_column"
-        )
-        response = self.client.get(path)
-        # then
-        self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-        self.assertListEqual(data["alliance_name"], ["Wayne Enterprises"])
-        self.assertListEqual(data["corporation_name"], ["Wayne Technologies"])
-        self.assertListEqual(data["region_name"], ["Heimatar", "Metropolis"])
-        self.assertListEqual(data["constellation_name"], ["Aldodan", "Hed"])
-        self.assertListEqual(data["solar_system_name"], ["Auga", "Helgatild"])
-        self.assertListEqual(data["rarity_class_str"], ["R64"])
-        self.assertListEqual(data["label_name"], ["Dummy"])
-        self.assertListEqual(data["has_refinery_str"], ["no", "yes"])
-        self.assertListEqual(data["has_extraction_str"], [])
-        self.assertIn("ERROR", data["invalid_column"][0])

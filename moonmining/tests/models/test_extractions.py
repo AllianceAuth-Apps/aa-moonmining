@@ -1,49 +1,48 @@
-from eveuniverse.models import EveMarketPrice, EveType
+from eveuniverse.tests.testdata.factories_2 import EveMarketPriceFactory
 
 from app_utils.testing import NoSocketsTestCase
 
 from moonmining.constants import EveTypeId
 from moonmining.core import CalculatedExtraction
 from moonmining.models import EveOreType, OreQualityClass
-from moonmining.tests.testdata.factories import (
-    Extraction,
-    ExtractionFactory,
-    RefineryFactory,
+from moonmining.tests.testdata.factories import Extraction
+from moonmining.tests.testdata.factories_2 import (
+    EveOreTypeFactory,
+    ExtractionFactory2,
+    OreTypeMaterialFactory,
+    RefineryFactory2,
 )
-from moonmining.tests.testdata.load_allianceauth import load_allianceauth
 from moonmining.tests.testdata.load_eveuniverse import load_eveuniverse
 
 
 class TestEveOreTypeCalcRefinedValues(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
+    def test_with_factories(self) -> None:
+        # given
+        cinnabar: EveOreType = EveOreTypeFactory(
+            create_price=False, create_type_materials=False
+        )
+        tungsten = OreTypeMaterialFactory(eve_type=cinnabar, quantity=10)
+        mercury = OreTypeMaterialFactory(eve_type=cinnabar, quantity=50)
+        evaporite_deposits = OreTypeMaterialFactory(eve_type=cinnabar, quantity=15)
+        EveMarketPriceFactory(eve_type=tungsten.material_eve_type, average_price=7000)
+        EveMarketPriceFactory(eve_type=mercury.material_eve_type, average_price=9750)
+        EveMarketPriceFactory(
+            eve_type=evaporite_deposits.material_eve_type, average_price=950
+        )
 
-    def setUp(self) -> None:
-        self.cinnebar = EveOreType.objects.get(id=45506)
-        tungsten = EveType.objects.get(id=16637)
-        mercury = EveType.objects.get(id=16646)
-        evaporite_deposits = EveType.objects.get(id=16635)
-        EveMarketPrice.objects.create(eve_type=tungsten, average_price=7000)
-        EveMarketPrice.objects.create(eve_type=mercury, average_price=9750)
-        EveMarketPrice.objects.create(eve_type=evaporite_deposits, average_price=950)
+        # when
+        got = cinnabar.calc_refined_value_per_unit(0.7)
 
-    def test_should_return_value_per_unit(self):
-        self.assertEqual(self.cinnebar.calc_refined_value_per_unit(0.7), 4002.25)
+        # then
+        self.assertEqual(got, 4002.25)
 
 
 class TestEveOreTypeProfileUrl(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-
     def test_should_return_correct_value(self):
         # given
-        cinnebar = EveOreType.objects.get(id=45506)
+        cinnabar = EveOreTypeFactory(id=45506)
         # when
-        result = cinnebar.profile_url
+        result = cinnabar.profile_url
         # then
         self.assertEqual(result, "https://www.kalkoken.org/apps/eveitems/?typeId=45506")
 
@@ -178,15 +177,9 @@ class TestEveOreTypeProfileUrl(NoSocketsTestCase):
 
 
 class TestExtraction(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-
     def test_should_convert_to_calculated_extraction(self):
         # given
-        refinery = RefineryFactory()
+        refinery = RefineryFactory2()
         my_map = [
             (Extraction.Status.STARTED, CalculatedExtraction.Status.STARTED),
             (Extraction.Status.CANCELED, CalculatedExtraction.Status.CANCELED),
@@ -195,7 +188,7 @@ class TestExtraction(NoSocketsTestCase):
         ]
         for in_status, out_status in my_map:
             with self.subTest(status=in_status):
-                extraction = ExtractionFactory(status=in_status, refinery=refinery)
+                extraction = ExtractionFactory2(status=in_status, refinery=refinery)
                 # when
                 obj = extraction.to_calculated_extraction()
                 # then

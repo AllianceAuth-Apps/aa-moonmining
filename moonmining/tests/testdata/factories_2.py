@@ -120,6 +120,7 @@ class RefineryTypeFactory(EveTypeFactory):
 class EveOreTypeFactory(MoonAsteroidsTypeFactory):
     class Meta:
         model = EveOreType
+        django_get_or_create = ("id",)
 
     volume = 10
 
@@ -144,7 +145,9 @@ class EveOreTypeFactory(MoonAsteroidsTypeFactory):
                 raise ValueError(f"Undefined ore quality class: {oqc}")
 
         da = EveDogmaAttributeFactory(id=EveDogmaAttributeId.ORE_QUALITY)
-        obj.dogma_attributes.create(eve_dogma_attribute=da, value=value)
+        obj.dogma_attributes.get_or_create(
+            eve_dogma_attribute=da, defaults={"value": value}
+        )
 
     @factory.post_generation
     def create_type_materials(obj: EveOreType, create, extracted, **kwargs):
@@ -152,11 +155,11 @@ class EveOreTypeFactory(MoonAsteroidsTypeFactory):
             return
 
         for _ in range(3):
-            OreTypeMaterialFactory(eve_type=obj)
+            OreTypeMaterialFactory(ore_type=obj)
 
     @factory.post_generation
     def create_price(obj: EveOreType, create, extracted, **kwargs):
-        if not create:
+        if not create or extracted is False:
             return
 
         price = EveMarketPriceFactory(eve_type=obj)
@@ -197,6 +200,14 @@ class UserMainOwnerFactory(UserMainFactory):
         "moonmining.upload_moon_scan",
         "moonmining.extractions_access",
         "moonmining.add_refinery_owner",
+    ]
+
+
+class UserMainMemberFactory(UserMainFactory):
+    main_character__scopes = Owner.esi_scopes()
+    permissions__ = [
+        "moonmining.basic_access",
+        "moonmining.upload_moon_scan",
     ]
 
 

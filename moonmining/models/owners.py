@@ -25,7 +25,7 @@ from moonmining import __title__
 from moonmining.app_settings import MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES
 from moonmining.constants import EveGroupId, EveTypeId, IconSize
 from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
-from moonmining.managers import MiningLedgerRecordManager, RefineryManager
+from moonmining.managers import MiningLedgerRecordManager
 from moonmining.models.extractions import EveOreType, Extraction
 from moonmining.models.moons import Moon
 from moonmining.models.notifications import Notification, NotificationType
@@ -425,8 +425,6 @@ class Refinery(models.Model):
         default=None,
         help_text=_("True if the last update of the mining ledger was successful"),
     )
-
-    objects = RefineryManager()
 
     class Meta:
         verbose_name = _("refinery")

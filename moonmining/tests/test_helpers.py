@@ -2,9 +2,9 @@ import datetime as dt
 
 from django.test import TestCase, tag
 
-from moonmining import helpers
+from app_utils.testdata_factories import UserMainFactory
 
-from .testdata.factories import UserMainFactory
+from moonmining import helpers
 
 
 class TestRoundDatetime(TestCase):
@@ -38,11 +38,13 @@ class TestRoundDatetime(TestCase):
 class TestUserPermLookup(TestCase):
     def test_should_return_lookup(self):
         # given
-        user = UserMainFactory(permissions=["moonmining.extractions_access"])
+        user = UserMainFactory(permissions__=["moonmining.extractions_access"])
+
         # when
         result = helpers.user_perms_lookup(
             user, ["moonmining.extractions_access", "moonmining.view_all_moons"]
         )
+
         # then
         excepted = {
             "moonmining": {

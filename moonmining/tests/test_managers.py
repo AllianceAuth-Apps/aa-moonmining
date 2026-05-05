@@ -3,66 +3,65 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils.timezone import now
-from eveuniverse.models import EveMarketPrice, EveType
+from eveuniverse.tests.testdata.factories_2 import EveMarketPriceFactory, EveMoonFactory
 
 from app_utils.testing import NoSocketsTestCase
 
-from moonmining.models import EveOreType, Extraction, Moon, Refinery
-
-from . import helpers
-from .testdata.factories import ExtractionFactory, OwnerFactory, RefineryFactory
-from .testdata.load_allianceauth import load_allianceauth
-from .testdata.load_eveuniverse import load_eveuniverse
-from .testdata.survey_data import fetch_survey_data
+from moonmining.models import EveOreType, Extraction, Moon
+from moonmining.tests.testdata.factories_2 import (
+    EveOreTypeFactory,
+    ExtractionFactory2,
+    OreTypeMaterialFactory,
+    RefineryFactory2,
+    UserMainMemberFactory,
+)
+from moonmining.tests.testdata.survey_data import fetch_survey_data
 
 MANAGERS_PATH = "moonmining.managers"
 
 
-class TestEveOreTypeManager(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-
+class TestEveOreTypeManager(NoSocketsTestCase):
     @patch(MANAGERS_PATH + ".MOONMINING_USE_REPROCESS_PRICING", False)
     def test_should_update_current_prices_with_market_price(self):
         # given
-        ore_type = EveOreType.objects.get(name="Cinnabar")
-        EveMarketPrice.objects.create(eve_type_id=ore_type.id, average_price=42)
+        ore_type = EveOreTypeFactory(create_price=False)
+        average_price = 42
+        EveMarketPriceFactory(eve_type=ore_type, average_price=average_price)
+
         # when
         EveOreType.objects.update_current_prices()
+
         # then
-        self.assertEqual(ore_type.extras.current_price, 42)
+        self.assertEqual(ore_type.extras.current_price, average_price)
 
     @patch(MANAGERS_PATH + ".MOONMINING_REPROCESSING_YIELD", 0.7)
     @patch(MANAGERS_PATH + ".MOONMINING_USE_REPROCESS_PRICING", True)
     def test_should_update_current_prices_with_reprocessed_value(self):
         # given
-        ore_type = EveOreType.objects.get(name="Cinnabar")
-        tungsten = EveType.objects.get(id=16637)
-        mercury = EveType.objects.get(id=16646)
-        evaporite_deposits = EveType.objects.get(id=16635)
-        EveMarketPrice.objects.create(eve_type=tungsten, average_price=7000)
-        EveMarketPrice.objects.create(eve_type=mercury, average_price=9750)
-        EveMarketPrice.objects.create(eve_type=evaporite_deposits, average_price=950)
+        cinnabar: EveOreType = EveOreTypeFactory(
+            create_price=False, create_type_materials=False
+        )
+        tungsten = OreTypeMaterialFactory(eve_type=cinnabar, quantity=10)
+        mercury = OreTypeMaterialFactory(eve_type=cinnabar, quantity=50)
+        evaporite_deposits = OreTypeMaterialFactory(eve_type=cinnabar, quantity=15)
+        EveMarketPriceFactory(eve_type=tungsten.material_eve_type, average_price=7000)
+        EveMarketPriceFactory(eve_type=mercury.material_eve_type, average_price=9750)
+        EveMarketPriceFactory(
+            eve_type=evaporite_deposits.material_eve_type, average_price=950
+        )
+
         # when
         EveOreType.objects.update_current_prices()
+
         # then
-        self.assertEqual(ore_type.extras.current_price, 4002.25)
+        self.assertEqual(cinnabar.extras.current_price, 4002.25)
 
 
 class TestExtractionManager(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
     def test_should_update_completed(self):
         # given
-        refinery = RefineryFactory()
-        extraction_1 = ExtractionFactory(
+        refinery = RefineryFactory2()
+        extraction_1 = ExtractionFactory2(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 1, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 12, 0, tzinfo=dt.timezone.utc),
@@ -70,7 +69,7 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.STARTED,
             create_products=False,
         )
-        extraction_2 = ExtractionFactory(
+        extraction_2 = ExtractionFactory2(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 2, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 15, 0, tzinfo=dt.timezone.utc),
@@ -78,7 +77,7 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.STARTED,
             create_products=False,
         )
-        extraction_3 = ExtractionFactory(
+        extraction_3 = ExtractionFactory2(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 3, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 18, 0, tzinfo=dt.timezone.utc),
@@ -86,7 +85,7 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.STARTED,
             create_products=False,
         )
-        extraction_4 = ExtractionFactory(
+        extraction_4 = ExtractionFactory2(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=dt.timezone.utc),
@@ -94,12 +93,14 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.CANCELED,
             create_products=False,
         )
+
         # when
         with patch(MANAGERS_PATH + ".now") as mock_now:
             mock_now.return_value = dt.datetime(
                 2021, 1, 1, 15, 30, tzinfo=dt.timezone.utc
             )
             Extraction.objects.all().update_status()
+
         # then
         extraction_1.refresh_from_db()
         self.assertEqual(extraction_1.status, Extraction.Status.COMPLETED)
@@ -115,34 +116,42 @@ class TestProcessSurveyInput(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        cls.user, cls.character_ownership = helpers.create_user_from_evecharacter(
-            1001,
-            permissions=[
-                "moonmining.basic_access",
-                "moonmining.extractions_access",
-                "moonmining.add_refinery_owner",
-            ],
-            scopes=[
-                "esi-industry.read_corporation_mining.v1",
-                "esi-universe.read_structures.v1",
-                "esi-characters.read_notifications.v1",
-                "esi-corporations.read_structures.v1",
-            ],
-        )
         cls.survey_data = fetch_survey_data()
 
     @patch(MANAGERS_PATH + ".notify", new=lambda *args, **kwargs: None)
     def test_should_process_survey_normally(self):
-        # when
-        result = Moon.objects.update_moons_from_survey(
-            self.survey_data.get(2), self.user
+        # given
+        user = UserMainMemberFactory()
+        EveMoonFactory(
+            id=40161708,
+            name="Auga V - Moon 1",
+            eve_planet__id=40161707,
+            eve_planet__name="Auga V",
+            eve_planet__eve_solar_system__id=30002542,
+            eve_planet__eve_solar_system__name="Auga",
         )
+        EveMoonFactory(
+            id=40161709,
+            name="Auga V - Moon 2",
+            eve_planet__id=40161708,
+            eve_planet__name="Auga V",
+            eve_planet__eve_solar_system__id=30002542,
+            eve_planet__eve_solar_system__name="Auga",
+        )
+        EveOreTypeFactory(id=45492, name="Bitumens")
+        EveOreTypeFactory(id=45494, name="Cobaltite")
+        EveOreTypeFactory(id=45506, name="Cinnabar")
+        EveOreTypeFactory(id=46676, name="Cubic Bistot")
+        EveOreTypeFactory(id=46678, name="Flawless Arkonor")
+        EveOreTypeFactory(id=46689, name="Stable Veldspar")
+
+        # when
+        result = Moon.objects.update_moons_from_survey(self.survey_data.get(2), user)
+
         # then
         self.assertTrue(result)
         m1 = Moon.objects.get(pk=40161708)
-        self.assertEqual(m1.products_updated_by, self.user)
+        self.assertEqual(m1.products_updated_by, user)
         self.assertAlmostEqual(m1.products_updated_at, now(), delta=dt.timedelta(30))
         self.assertEqual(m1.products.count(), 4)
         self.assertEqual(m1.products.get(ore_type_id=45506).amount, 0.19)
@@ -151,29 +160,10 @@ class TestProcessSurveyInput(NoSocketsTestCase):
         self.assertEqual(m1.products.get(ore_type_id=46689).amount, 0.33)
 
         m2 = Moon.objects.get(pk=40161709)
-        self.assertEqual(m2.products_updated_by, self.user)
+        self.assertEqual(m2.products_updated_by, user)
         self.assertAlmostEqual(m2.products_updated_at, now(), delta=dt.timedelta(30))
         self.assertEqual(m2.products.count(), 4)
         self.assertEqual(m2.products.get(ore_type_id=45492).amount, 0.27)
         self.assertEqual(m2.products.get(ore_type_id=45494).amount, 0.23)
         self.assertEqual(m2.products.get(ore_type_id=46676).amount, 0.21)
         self.assertEqual(m2.products.get(ore_type_id=46678).amount, 0.29)
-
-
-class TestRefineryManager(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
-    def test_should_return_ids(self):
-        # given
-        owner = OwnerFactory()
-        RefineryFactory(id=1001, owner=owner)
-        RefineryFactory(id=1002, owner=owner)
-        # when
-        result = Refinery.objects.ids()
-        # then
-        self.assertSetEqual(result, {1001, 1002})

@@ -50,11 +50,12 @@ class EveOreTypeManger(EveTypeManager):
 
     def update_current_prices(self, use_process_pricing: Optional[bool] = None):
         """Update current prices for all ores."""
-        from .models import EveOreTypeExtras
+        from .models import EveOreType, EveOreTypeExtras
 
         if use_process_pricing is None:
             use_process_pricing = MOONMINING_USE_REPROCESS_PRICING
 
+        obj: EveOreType
         for obj in self.filter(published=True).select_related("market_price"):
             if use_process_pricing:
                 price = obj.calc_refined_value_per_unit(MOONMINING_REPROCESSING_YIELD)
@@ -413,9 +414,3 @@ class ExtractionManagerBase(models.Manager):
 
 
 ExtractionManager = ExtractionManagerBase.from_queryset(ExtractionQuerySet)
-
-
-class RefineryManager(models.Manager):
-    def ids(self) -> set:
-        """Return IDs of this queryset."""
-        return set(self.values_list("id", flat=True))

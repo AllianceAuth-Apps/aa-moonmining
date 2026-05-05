@@ -6,18 +6,13 @@ import factory
 import factory.fuzzy
 
 from django.utils.timezone import now
-from eveuniverse.models import EveEntity, EveMoon, EveType
+from eveuniverse.models import EveMoon, EveType
 from eveuniverse.tests.testdata.factories_2 import (
     EveEntityCharacterFactory,
     EveEntityCorporationFactory,
 )
 
 from allianceauth.eveonline.models import EveCorporationInfo
-from app_utils.testdata_factories import (
-    EveCharacterFactory,
-    EveCorporationInfoFactory,
-    UserMainFactory,
-)
 from app_utils.testing import create_user_from_evecharacter
 
 from moonmining.app_settings import MOONMINING_VOLUME_PER_DAY
@@ -30,12 +25,9 @@ from moonmining.models import (
     MiningLedgerRecord,
     Moon,
     MoonProduct,
-    Notification,
-    NotificationType,
     Owner,
     Refinery,
 )
-from moonmining.tests.helpers import datetime_to_ldap
 
 T = TypeVar("T")
 
@@ -45,36 +37,6 @@ _FUZZY_START_YEAR = 2008
 class BaseMetaFactory(Generic[T], factory.base.FactoryMetaClass):
     def __call__(cls, *args, **kwargs) -> T:
         return super().__call__(*args, **kwargs)
-
-
-# Auth
-
-
-class DefaultOwnerUserMainFactory(UserMainFactory):
-    main_character__scopes = Owner.esi_scopes()
-    permissions__ = [
-        "moonmining.basic_access",
-        "moonmining.upload_moon_scan",
-        "moonmining.extractions_access",
-        "moonmining.add_refinery_owner",
-    ]
-
-    @factory.lazy_attribute
-    def main_character__character(self):
-        corporation = EveCorporationInfoFactory(
-            corporation_id=2001, corporation_name="Wayne Technologies"
-        )
-        return EveCharacterFactory(
-            character_id=1001, character_name="Bruce Wayne", corporation=corporation
-        )
-
-
-# eveuniverse
-
-
-class EveEntityCorporationDEDFactory(EveEntityCorporationFactory):
-    id = 1000137
-    name = "DED"
 
 
 # moonmining
@@ -287,233 +249,3 @@ class ExtractionProductFactory(
 ):
     class Meta:
         model = ExtractionProduct
-
-
-class NotificationFactory(
-    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Notification]
-):
-    """Create notifications from Extraction objects."""
-
-    class Meta:
-        model = Notification
-
-    class Params:
-        extraction = factory.SubFactory(ExtractionFactory)
-
-    notification_id = factory.Sequence(lambda n: 1_900_000_001 + n)
-    owner = factory.LazyAttribute(lambda obj: obj.extraction.refinery.owner)
-    created = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(_FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc),
-        force_microsecond=0,
-    )
-    notif_type = factory.LazyAttribute(
-        lambda obj: obj.extraction.status.to_notification_type
-    )
-    last_updated = factory.LazyFunction(now)
-    sender = factory.SubFactory(EveEntityCorporationFactory, name="DED")
-    timestamp = factory.LazyAttribute(lambda obj: obj.extraction.started_at)
-
-    @factory.lazy_attribute
-    def details(self):
-        def _details_link(character: EveEntity) -> str:
-            return f'<a href="showinfo:1379//{character.id}">{character.name}</a>'
-
-        def _to_ore_volume_by_type(extraction):
-            return {
-                str(obj.ore_type_id): obj.volume for obj in extraction.products.all()
-            }
-
-        refinery = self.extraction.refinery
-        data = {
-            "moonID": self.extraction.refinery.moon.eve_moon_id,
-            "structureID": self.extraction.refinery_id,
-            "solarSystemID": refinery.moon.solar_system().id,
-            "structureLink": (
-                f'<a href="showinfo:35835//{refinery.id}">{refinery.name}</a>'
-            ),
-            "structureName": refinery.name,
-            "structureTypeID": refinery.eve_type_id,
-        }
-        if self.extraction.status == Extraction.Status.STARTED:
-            started_by = (
-                self.extraction.started_by
-                if self.extraction.started_by
-                else EveEntityCharacterFactory()
-            )
-            data.update(
-                {
-                    "autoTime": datetime_to_ldap(self.extraction.auto_fracture_at),
-                    "readyTime": datetime_to_ldap(self.extraction.chunk_arrival_at),
-                    "startedBy": started_by.id,
-                    "startedByLink": _details_link(started_by),
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-        elif self.extraction.status == Extraction.Status.READY:
-            data.update(
-                {
-                    "autoTime": datetime_to_ldap(self.extraction.auto_fracture_at),
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-        elif self.extraction.status == Extraction.Status.COMPLETED:
-            data.update(
-                {
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-
-        elif self.extraction.status == Extraction.Status.COMPLETED:
-            fired_by = EveEntityCharacterFactory()
-            data.update(
-                {
-                    "firedBy": fired_by.id,
-                    "firedByLink": _details_link(fired_by),
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-        elif self.extraction.status == Extraction.Status.CANCELED:
-            canceled_by = (
-                self.extraction.canceled_by
-                if self.extraction.canceled_by
-                else EveEntityCharacterFactory()
-            )
-            data.update(
-                {
-                    "cancelledBy": canceled_by.id,
-                    "cancelledByLink": _details_link(canceled_by),
-                }
-            )
-        return data
-
-
-class NotificationFactory2(
-    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Notification]
-):
-    """Create notifications from CalculatedExtraction objects."""
-
-    class Meta:
-        model = Notification
-        exclude = (
-            "extraction",
-            "moon_id",
-            "solar_system_id",
-            "structure_id",
-            "structure_name",
-            "structure_type_id",
-        )
-
-    class Params:
-        create_products = False
-
-    # regular
-    notification_id = factory.Sequence(lambda n: 1_900_000_001 + n)
-    owner = factory.SubFactory(OwnerFactory)
-    created = factory.fuzzy.FuzzyDateTime(
-        dt.datetime(_FUZZY_START_YEAR, 1, 1, tzinfo=dt.timezone.utc),
-        force_microsecond=0,
-    )
-    last_updated = factory.LazyFunction(now)
-    sender = factory.SubFactory(EveEntityCorporationFactory, name="DED")
-    timestamp = factory.LazyAttribute(lambda obj: obj.extraction.started_at)
-
-    # excluded
-    extraction = factory.SubFactory(CalculatedExtractionFactory)
-    moon_id = 40161708  # Auga V - Moon 1
-    solar_system_id = 30002542  # Auga V
-    structure_name = factory.Faker("city")
-    structure_type_id = EveTypeId.ATHANOR
-
-    @factory.lazy_attribute
-    def notif_type(self):
-        status_map = {
-            CalculatedExtraction.Status.STARTED: (
-                NotificationType.MOONMINING_EXTRACTION_STARTED
-            ),
-            CalculatedExtraction.Status.READY: (
-                NotificationType.MOONMINING_EXTRACTION_FINISHED
-            ),
-            CalculatedExtraction.Status.COMPLETED: (
-                NotificationType.MOONMINING_LASER_FIRED
-            ),
-            CalculatedExtraction.Status.CANCELED: (
-                NotificationType.MOONMINING_EXTRACTION_CANCELLED
-            ),
-        }
-        try:
-            return status_map[self.extraction.status]
-        except KeyError:
-            raise ValueError(f"Invalid status: {self.extraction.status}") from None
-
-    @factory.lazy_attribute
-    def details(self):
-        def _details_link(character: EveEntity) -> str:
-            return f'<a href="showinfo:1379//{character.id}">{character.name}</a>'
-
-        def _to_ore_volume_by_type(extraction):
-            return {str(obj.ore_type_id): obj.volume for obj in extraction.products}
-
-        if self.create_products:
-            self.extraction.products = _generate_calculated_extraction_products(
-                self.extraction.started_at, self.extraction.chunk_arrival_at
-            )
-
-        data = {
-            "moonID": self.moon_id,
-            "structureID": self.extraction.refinery_id,
-            "solarSystemID": self.solar_system_id,
-            "structureLink": (
-                f'<a href="showinfo:35835//{self.extraction.refinery_id}">{self.structure_name}</a>'
-            ),
-            "structureName": self.structure_name,
-            "structureTypeID": self.structure_type_id,
-        }
-        if self.extraction.status == CalculatedExtraction.Status.STARTED:
-            started_by = (
-                EveEntityCharacterFactory(id=self.extraction.started_by)
-                if self.extraction.started_by
-                else EveEntityCharacterFactory()
-            )
-            data.update(
-                {
-                    "autoTime": datetime_to_ldap(self.extraction.auto_fracture_at),
-                    "readyTime": datetime_to_ldap(self.extraction.chunk_arrival_at),
-                    "startedBy": started_by.id,
-                    "startedByLink": _details_link(started_by),
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-        elif self.extraction.status == CalculatedExtraction.Status.READY:
-            data.update(
-                {
-                    "autoTime": datetime_to_ldap(self.extraction.auto_fracture_at),
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-
-        elif self.extraction.status == CalculatedExtraction.Status.COMPLETED:
-            fired_by = (
-                EveEntityCharacterFactory(id=self.extraction.fractured_by)
-                if self.extraction.fractured_by
-                else EveEntityCharacterFactory()
-            )
-            data.update(
-                {
-                    "firedBy": fired_by.id,
-                    "firedByLink": _details_link(fired_by),
-                    "oreVolumeByType": _to_ore_volume_by_type(self.extraction),
-                }
-            )
-        elif self.extraction.status == CalculatedExtraction.Status.CANCELED:
-            canceled_by = (
-                EveEntityCharacterFactory(id=self.extraction.canceled_by)
-                if self.extraction.canceled_by
-                else EveEntityCharacterFactory()
-            )
-            data.update(
-                {
-                    "cancelledBy": canceled_by.id,
-                    "cancelledByLink": _details_link(canceled_by),
-                }
-            )
-        return data
