@@ -9,6 +9,10 @@ from django.urls import reverse
 from django.utils.timezone import now
 from django_webtest import WebTest
 from eveuniverse.models import EveMoon
+from eveuniverse.tests.testdata.factories_2 import (
+    EveEntityCharacterFactory,
+    EveEntityCorporationFactory,
+)
 
 from app_utils.testing import (
     create_user_from_evecharacter,
@@ -19,17 +23,14 @@ from app_utils.testing import (
 from moonmining import tasks
 from moonmining.models import Label, Moon, Owner, Refinery
 from moonmining.tests import helpers
+from moonmining.tests.helpers import datetime_to_ldap
 from moonmining.tests.testdata.factories import (
-    EveEntityCharacterFactory,
-    EveEntityCorporationFactory,
     ExtractionFactory,
-    MoonAsteroidsTypeFactory,
     MoonFactory,
     OwnerFactory,
     RefineryFactory,
-    datetime_to_ldap,
-    make_esi_url,
 )
+from moonmining.tests.testdata.factories_2 import MoonAsteroidsTypeFactory, make_esi_url
 from moonmining.tests.testdata.load_allianceauth import load_allianceauth
 from moonmining.tests.testdata.load_eveuniverse import (
     load_eveuniverse,

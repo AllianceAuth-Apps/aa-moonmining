@@ -1,6 +1,5 @@
 import datetime as dt
 import random
-import urllib.parse
 from typing import Generic, List, TypeVar
 
 import factory
@@ -8,7 +7,10 @@ import factory.fuzzy
 
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity, EveMoon, EveType
-from eveuniverse.tests.testdata.factories_2 import EveGroupFactory, EveTypeFactory
+from eveuniverse.tests.testdata.factories_2 import (
+    EveEntityCharacterFactory,
+    EveEntityCorporationFactory,
+)
 
 from allianceauth.eveonline.models import EveCorporationInfo
 from app_utils.testdata_factories import (
@@ -19,7 +21,7 @@ from app_utils.testdata_factories import (
 from app_utils.testing import create_user_from_evecharacter
 
 from moonmining.app_settings import MOONMINING_VOLUME_PER_DAY
-from moonmining.constants import EveCategoryId, EveGroupId, EveTypeId
+from moonmining.constants import EveTypeId
 from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
 from moonmining.models import (
     EveOreType,
@@ -33,31 +35,11 @@ from moonmining.models import (
     Owner,
     Refinery,
 )
+from moonmining.tests.helpers import datetime_to_ldap
 
 T = TypeVar("T")
 
 _FUZZY_START_YEAR = 2008
-_BASE_URL = "https://esi.evetech.net/"
-POSITION_MIN = -100_000_000_000_000_000
-POSITION_MAX = 100_000_000_000_000_000
-
-
-def make_esi_url(path: str) -> str:
-    if path.startswith("/"):
-        raise ValueError("path can not start with a slash")
-    if path.endswith("/"):
-        raise ValueError("path can not end with a slash")
-
-    url = urllib.parse.urljoin(_BASE_URL, "/latest/" + path + "/")
-    return url
-
-
-def datetime_to_ldap(my_dt: dt.datetime) -> int:
-    """datetime.datetime to ldap"""
-    return (
-        ((my_dt - dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)).total_seconds())
-        + 11644473600
-    ) * 10000000
 
 
 class BaseMetaFactory(Generic[T], factory.base.FactoryMetaClass):
@@ -90,50 +72,9 @@ class DefaultOwnerUserMainFactory(UserMainFactory):
 # eveuniverse
 
 
-class PositionFactory(factory.DictFactory, metaclass=BaseMetaFactory[dict]):
-    x = factory.fuzzy.FuzzyFloat(POSITION_MIN, POSITION_MAX)
-    y = factory.fuzzy.FuzzyFloat(POSITION_MIN, POSITION_MAX)
-    z = factory.fuzzy.FuzzyFloat(POSITION_MIN, POSITION_MAX)
-
-
-class EveEntityFactory(
-    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[EveEntity]
-):
-    class Meta:
-        model = EveEntity
-        django_get_or_create = ("id", "name")
-
-    id = factory.Sequence(lambda n: 10_001 + n)
-
-
-class EveEntityCharacterFactory(EveEntityFactory):
-    name = factory.Faker("name")
-    category = EveEntity.CATEGORY_CHARACTER
-
-
-class EveEntityCorporationFactory(EveEntityFactory):
-    name = factory.Faker("company")
-    category = EveEntity.CATEGORY_CORPORATION
-
-
-class EveEntityAllianceFactory(EveEntityFactory):
-    name = factory.Faker("company")
-    category = EveEntity.CATEGORY_ALLIANCE
-
-
 class EveEntityCorporationDEDFactory(EveEntityCorporationFactory):
     id = 1000137
     name = "DED"
-
-
-class MoonAsteroidsTypeFactory(EveTypeFactory):
-    eve_group = factory.SubFactory(
-        EveGroupFactory,
-        eve_category__id=EveCategoryId.ASTEROID,
-        eve_category__name="Asteroid",
-        id=EveGroupId.COMMON_MOON_ASTEROIDS,
-        name="Common Moon Asteroids",
-    )
 
 
 # moonmining
@@ -575,142 +516,4 @@ class NotificationFactory2(
                     "cancelledByLink": _details_link(canceled_by),
                 }
             )
-        return data
-
-
-class MoonNotificationFactory(
-    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Notification]
-):
-    """Create moon notification from scratch."""
-
-    class Meta:
-        model = Notification
-        exclude = (
-            "auto_fracture_at",
-            "chunk_arrival_at",
-            "eve_moon",
-            "refinery",
-            "started_at",
-        )
-
-    class Params:
-        started_by = None
-
-    started_at = factory.fuzzy.FuzzyDateTime(
-        now() - dt.timedelta(days=30), force_microsecond=0
-    )
-    chunk_arrival_at = factory.LazyAttribute(
-        lambda o: o.started_at + dt.timedelta(days=20)
-    )
-    auto_fracture_at = factory.LazyAttribute(
-        lambda o: o.chunk_arrival_at + dt.timedelta(hours=3)
-    )
-    refinery = factory.SubFactory(RefineryFactory)
-    eve_moon = factory.LazyAttribute(lambda o: o.refinery.moon.eve_moon)
-
-    notification_id = factory.Sequence(lambda n: 1_990_000_001 + n)
-    owner = factory.LazyAttribute(lambda o: o.refinery.owner)
-    created = factory.LazyFunction(now)
-    notif_type = NotificationType.MOONMINING_EXTRACTION_STARTED.value
-    last_updated = factory.LazyFunction(now)
-    sender = factory.SubFactory(EveEntityCorporationDEDFactory)
-
-    @factory.lazy_attribute
-    def timestamp(self) -> dt.datetime:
-        match NotificationType(self.notif_type):
-            case NotificationType.MOONMINING_EXTRACTION_STARTED:
-                return self.started_at.replace(microsecond=0)
-
-            case NotificationType.MOONMINING_EXTRACTION_CANCELLED:
-                return factory.fuzzy.FuzzyDateTime(
-                    self.started_at, self.chunk_arrival_at, force_microsecond=0
-                ).fuzz()
-
-            case NotificationType.MOONMINING_EXTRACTION_FINISHED:
-                return self.chunk_arrival_at
-
-            case NotificationType.MOONMINING_LASER_FIRED:
-                return factory.fuzzy.FuzzyDateTime(
-                    self.chunk_arrival_at, self.auto_fracture_at, force_microsecond=0
-                ).fuzz()
-
-            case NotificationType.MOONMINING_AUTOMATIC_FRACTURE:
-                return self.auto_fracture_at.replace(microsecond=0)
-
-            case _:
-                raise ValueError(f"invalid notif type: {self.notif_type}")
-
-    @factory.lazy_attribute
-    def details(self) -> dict:
-        def _details_link(character: EveEntity) -> str:
-            return f'<a href="showinfo:1379//{character.id}">{character.name}</a>'
-
-        data = {
-            "moonID": self.eve_moon.id,
-            "structureID": self.refinery.id,
-            "solarSystemID": self.eve_moon.eve_planet.eve_solar_system.id,
-            "structureLink": (
-                f'<a href="showinfo:35835//{self.refinery.id}">{self.refinery.name}</a>'
-            ),
-            "structureName": self.refinery.name,
-            "structureTypeID": self.refinery.eve_type_id,
-        }
-
-        ore_volume_by_type = {
-            str(x.ore_type_id): x.volume
-            for x in _generate_calculated_extraction_products(
-                self.started_at, self.chunk_arrival_at
-            )
-        }
-
-        match NotificationType(self.notif_type):
-            case NotificationType.MOONMINING_EXTRACTION_STARTED:
-                started_by = self.started_by or EveEntityCharacterFactory()
-                data.update(
-                    {
-                        "startedBy": started_by.id,
-                        "startedByLink": _details_link(started_by),
-                        "autoTime": datetime_to_ldap(self.auto_fracture_at),
-                        "readyTime": datetime_to_ldap(self.chunk_arrival_at),
-                        "oreVolumeByType": ore_volume_by_type,
-                    }
-                )
-
-            case NotificationType.MOONMINING_EXTRACTION_CANCELLED:
-                canceled_by = EveEntityCharacterFactory()
-                data.update(
-                    {
-                        "cancelledBy": canceled_by.id,
-                        "cancelledByLink": _details_link(canceled_by),
-                    }
-                )
-
-            case NotificationType.MOONMINING_EXTRACTION_FINISHED:
-                data.update(
-                    {
-                        "autoTime": datetime_to_ldap(self.auto_fracture_at),
-                        "oreVolumeByType": ore_volume_by_type,
-                    }
-                )
-
-            case NotificationType.MOONMINING_LASER_FIRED:
-                fired_by = EveEntityCharacterFactory()
-                data.update(
-                    {
-                        "firedBy": fired_by.id,
-                        "firedByLink": _details_link(fired_by),
-                        "oreVolumeByType": ore_volume_by_type,
-                    }
-                )
-
-            case NotificationType.MOONMINING_AUTOMATIC_FRACTURE:
-                data.update(
-                    {
-                        "oreVolumeByType": ore_volume_by_type,
-                    }
-                )
-
-            case _:
-                raise ValueError(f"invalid notif type: {self.notif_type}")
-
         return data

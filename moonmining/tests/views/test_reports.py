@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from eveuniverse.models import EveMarketPrice, EveMoon
+from eveuniverse.tests.testdata.factories_2 import EveEntityCharacterFactory
 
 from app_utils.testing import (
     create_user_from_evecharacter,
@@ -13,7 +14,6 @@ from app_utils.testing import (
 from moonmining.models import EveOreType, Owner
 from moonmining.tests import helpers
 from moonmining.tests.testdata.factories import (
-    EveEntityCharacterFactory,
     EveEntityCorporationFactory,
     MiningLedgerRecordFactory,
     MoonFactory,

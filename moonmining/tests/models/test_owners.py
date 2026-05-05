@@ -8,91 +8,97 @@ import yaml
 from django.db.models import QuerySet
 from django.utils.timezone import now
 from esi.models import Token
-from eveuniverse.tests.testdata.factories_2 import EveMoonFactory
+from eveuniverse.models import EveSolarSystem
+from eveuniverse.tests.testdata.factories_2 import (
+    EveEntityCharacterFactory,
+    EveEntityCorporationFactory,
+    EveMoonFactory,
+)
 
-from app_utils.testdata_factories import UserFactory
 from app_utils.testing import NoSocketsTestCase, queryset_pks
 
 from moonmining.models import (
     Extraction,
     ExtractionProduct,
     MiningLedgerRecord,
+    MoonProduct,
     Notification,
     NotificationType,
     Owner,
     Refinery,
 )
 from moonmining.tests import helpers
-from moonmining.tests.testdata.factories import (
-    EveEntityCharacterFactory,
-    EveEntityCorporationFactory,
-    ExtractionFactory,
-    MiningLedgerRecordFactory,
+from moonmining.tests.helpers import datetime_to_ldap
+from moonmining.tests.testdata.factories_2 import (
+    ExtractionFactory2,
+    MiningLedgerRecordFactory2,
     MoonAsteroidsTypeFactory,
-    MoonFactory,
-    MoonNotificationFactory,
-    NotificationFactory2,
-    OwnerFactory,
-    RefineryFactory,
+    MoonFactory2,
+    MoonNotificationFactory2,
+    MoonTypeFactory,
+    OwnerFactory2,
+    PositionFactory,
+    RefineryFactory2,
+    RefineryTypeFactory,
     make_esi_url,
-)
-from moonmining.tests.testdata.load_allianceauth import load_allianceauth
-from moonmining.tests.testdata.load_eveuniverse import (
-    load_eveuniverse,
-    nearest_celestial_stub,
 )
 
 MODELS_PATH = "moonmining.models"
 
 
 class TestOwner(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-
     def test_should_return_token(self):
         # given
-        owner = OwnerFactory()
+        owner = OwnerFactory2()
+
         # when
         result = owner.fetch_token()
+
         # then
         self.assertIsInstance(result, Token)
 
     def test_should_raise_error_when_no_character_ownership(self):
         # given
-        owner: Owner = OwnerFactory.build(character_ownership=None)
+        owner: Owner = OwnerFactory2()
+        owner.character_ownership = None
+        owner.save()
+
         # when
         with self.assertRaises(RuntimeError):
             owner.fetch_token()
 
     def test_should_raise_error_when_no_token_found(self):
         # given
-        owner = OwnerFactory()
+        owner = OwnerFactory2()
         Token.objects.filter(user=owner.character_ownership.user).delete()
+
         # when
         with self.assertRaises(Token.DoesNotExist):
             owner.fetch_token()
 
 
 class TestOwnerFetchNotifications(helpers.TestCaseWithClearCache):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
     @pook.on
     def test_should_create_new_notifications_from_esi(self):
         # given
-        character_id = 1005
-        sender_id = 2101
-        timestamp = dt.datetime(2019, 11, 22, 1, 0, tzinfo=dt.timezone.utc)
-        moon_id = 40161465
-        structure_id = 1000000000001
+        owner = OwnerFactory2()
+        character_id = owner.character_ownership.character.character_id
+        moon = EveMoonFactory()
         notification_id = 1005000101
+        sender = EveEntityCorporationFactory()
+        started_by = EveEntityCharacterFactory()
+        structure_id = 1000000000001
+        structureType = RefineryTypeFactory()
+        timestamp = now()
+        autoTime = datetime_to_ldap(now() + dt.timedelta(days=10))
+        readyTime = datetime_to_ldap(now() + dt.timedelta(hours=3))
+        oreVolumeByType = {
+            "46300": 1288475.124715103,
+            "46301": 544691.7637724016,
+            "46302": 526825.4047522942,
+            "46303": 528996.6386983792,
+        }
+
         pook.get(
             make_esi_url(f"characters/{character_id}/notifications"),
             reply=200,
@@ -100,37 +106,28 @@ class TestOwnerFetchNotifications(helpers.TestCaseWithClearCache):
                 {
                     "notification_id": notification_id,
                     "type": "MoonminingExtractionStarted",
-                    "sender_id": sender_id,
+                    "sender_id": sender.id,
                     "sender_type": "corporation",
                     "timestamp": timestamp.isoformat(),
                     "text": yaml.dump(
                         {
-                            "autoTime": 132186924601059151,
-                            "moonID": moon_id,
-                            "oreVolumeByType": {
-                                46300: 1288475.124715103,
-                                46301: 544691.7637724016,
-                                46302: 526825.4047522942,
-                                46303: 528996.6386983792,
-                            },
-                            "readyTime": 132186816601059151,
-                            "solarSystemID": 30002537,
-                            "startedBy": 1001,
+                            "autoTime": autoTime,
+                            "moonID": moon.id,
+                            "oreVolumeByType": oreVolumeByType,
+                            "readyTime": readyTime,
+                            "solarSystemID": moon.eve_planet.eve_solar_system.id,
+                            "startedBy": started_by.id,
                             "startedByLink": '<a href="showinfo:1383//1001">Bruce Wayne</a>',
                             "structureID": structure_id,
                             "structureLink": f'<a href="showinfo:35835//{structure_id}">Dummy</a>',
                             "structureName": "Dummy",
-                            "structureTypeID": 35835,
+                            "structureTypeID": structureType.id,
                         }
                     ),
                     "is_read": False,
                 },
             ],
         )
-        _, character_ownership = helpers.create_default_user_from_evecharacter(
-            character_id
-        )
-        owner = OwnerFactory(character_ownership=character_ownership)
 
         # when
         owner.fetch_notifications_from_esi()
@@ -139,34 +136,36 @@ class TestOwnerFetchNotifications(helpers.TestCaseWithClearCache):
         self.assertEqual(owner.notifications.count(), 1)
         obj: Notification = owner.notifications.get(notification_id=notification_id)
         self.assertEqual(obj.notif_type, NotificationType.MOONMINING_EXTRACTION_STARTED)
-        self.assertEqual(obj.sender.id, sender_id)
+        self.assertEqual(obj.sender, sender)
         self.assertEqual(obj.timestamp, timestamp)
-        self.assertEqual(obj.details["moonID"], moon_id)
+        self.assertEqual(obj.details["autoTime"], autoTime)
+        self.assertEqual(obj.details["moonID"], moon.id)
+        self.assertEqual(obj.details["oreVolumeByType"], oreVolumeByType)
+        self.assertEqual(obj.details["readyTime"], readyTime)
+        self.assertEqual(obj.details["startedBy"], started_by.id)
         self.assertEqual(obj.details["structureID"], structure_id)
+        self.assertEqual(obj.details["structureTypeID"], structureType.id)
 
 
 @patch(MODELS_PATH + ".owners.notify_admins_throttled", lambda *args, **kwargs: None)
+@patch(MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial")
 class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        cls.owner = OwnerFactory()
-
-    @patch(
-        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
-        new=nearest_celestial_stub,
-    )
     @pook.on
-    def test_should_create_new_refineries_from_scratch(self):
+    def test_should_create_new_refineries_from_scratch(
+        self, mock_nearest_celestial: Mock
+    ):
         # given
-        corporation_id = self.owner.corporation.corporation_id
+        owner = OwnerFactory2()
+        corporation_id = owner.corporation.corporation_id
         structure_id = 1000000000001
         structure_name = "Auga - Paradise Alpha"
-        solar_system_id = 30002542
-        type_id = 35835
-        moon_id = 40161708
+        structure_type = RefineryTypeFactory()
+        eve_moon = EveMoonFactory()
+        mock_nearest_celestial.return_value = EveSolarSystem.NearestCelestial(
+            eve_type=MoonTypeFactory(),
+            eve_object=eve_moon,
+            distance=123,
+        )
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
             reply=200,
@@ -182,8 +181,8 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
                     ],
                     "state": "shield_vulnerable",
                     "structure_id": structure_id,
-                    "system_id": solar_system_id,
-                    "type_id": type_id,
+                    "system_id": eve_moon.eve_planet.eve_solar_system.id,
+                    "type_id": structure_type.id,
                 },
             ],
         )
@@ -193,36 +192,33 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
             response_json={
                 "owner_id": corporation_id,
                 "name": structure_name,
-                "position": {
-                    "x": 55028384780.0,
-                    "y": 7310316270.0,
-                    "z": -163686684205.0,
-                },
-                "solar_system_id": solar_system_id,
-                "type_id": type_id,
+                "position": PositionFactory(),
+                "solar_system_id": eve_moon.eve_planet.eve_solar_system.id,
+                "type_id": structure_type.id,
             },
         )
 
         # when
-        self.owner.update_refineries_from_esi()
+        owner.update_refineries_from_esi()
 
         # then
         self.assertSetEqual(queryset_pks(Refinery.objects.all()), {structure_id})
         refinery = Refinery.objects.get(id=structure_id)
         self.assertEqual(refinery.name, structure_name)
-        self.assertEqual(refinery.moon.eve_moon.id, moon_id)
+        self.assertEqual(refinery.moon.eve_moon, eve_moon)
 
-    @patch(MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial")
     @pook.on
     def test_should_handle_exception_from_nearest_celestial(
         self, mock_nearest_celestial: Mock
     ):
         # given
-        mock_nearest_celestial.side_effect = OSError
-        corporation_id = self.owner.corporation.corporation_id
+        owner = OwnerFactory2()
+        corporation_id = owner.corporation.corporation_id
         structure_id = 1000000000001
-        solar_system_id = 30002542
-        type_id = 35835
+        structure_name = "Auga - Paradise Alpha"
+        structure_type = RefineryTypeFactory()
+        eve_moon = EveMoonFactory()
+        mock_nearest_celestial.side_effect = OSError
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
             reply=200,
@@ -238,8 +234,8 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
                     ],
                     "state": "shield_vulnerable",
                     "structure_id": structure_id,
-                    "system_id": solar_system_id,
-                    "type_id": type_id,
+                    "system_id": eve_moon.eve_planet.eve_solar_system.id,
+                    "type_id": structure_type.id,
                 },
             ],
         )
@@ -248,38 +244,38 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
             reply=200,
             response_json={
                 "owner_id": corporation_id,
-                "name": "Auga - Paradise Alpha",
-                "position": {
-                    "x": 55028384780.0,
-                    "y": 7310316270.0,
-                    "z": -163686684205.0,
-                },
-                "solar_system_id": solar_system_id,
-                "type_id": type_id,
+                "name": structure_name,
+                "position": PositionFactory(),
+                "solar_system_id": eve_moon.eve_planet.eve_solar_system.id,
+                "type_id": structure_type.id,
             },
         )
 
         # when
-        self.owner.update_refineries_from_esi()
+        owner.update_refineries_from_esi()
 
         # then
         self.assertSetEqual(queryset_pks(Refinery.objects.all()), {structure_id})
         refinery = Refinery.objects.get(id=structure_id)
         self.assertIsNone(refinery.moon)
-        self.assertEqual(mock_nearest_celestial.call_count, 1)
 
-    @patch(
-        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
-        new=nearest_celestial_stub,
-    )
     @pook.on
-    def test_should_remove_refineries_that_no_longer_exist(self):
+    def test_should_remove_refineries_that_no_longer_exist(
+        self, mock_nearest_celestial: Mock
+    ):
         # given
-        RefineryFactory(id=1990000000001, owner=self.owner)
-        corporation_id = self.owner.corporation.corporation_id
+        owner = OwnerFactory2()
+        RefineryFactory2(owner=owner)  # should be deleted
+        corporation_id = owner.corporation.corporation_id
         structure_id = 1000000000001
-        solar_system_id = 30002542
-        type_id = 35835
+        structure_name = "Auga - Paradise Alpha"
+        structure_type = RefineryTypeFactory()
+        eve_moon = EveMoonFactory()
+        mock_nearest_celestial.return_value = EveSolarSystem.NearestCelestial(
+            eve_type=MoonTypeFactory(),
+            eve_object=eve_moon,
+            distance=123,
+        )
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
             reply=200,
@@ -295,8 +291,8 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
                     ],
                     "state": "shield_vulnerable",
                     "structure_id": structure_id,
-                    "system_id": solar_system_id,
-                    "type_id": type_id,
+                    "system_id": eve_moon.eve_planet.eve_solar_system.id,
+                    "type_id": structure_type.id,
                 },
             ],
         )
@@ -305,34 +301,27 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
             reply=200,
             response_json={
                 "owner_id": corporation_id,
-                "name": "Auga - Paradise Alpha",
-                "position": {
-                    "x": 55028384780.0,
-                    "y": 7310316270.0,
-                    "z": -163686684205.0,
-                },
-                "solar_system_id": solar_system_id,
-                "type_id": type_id,
+                "name": structure_name,
+                "position": PositionFactory(),
+                "solar_system_id": eve_moon.eve_planet.eve_solar_system.id,
+                "type_id": structure_type.id,
             },
         )
 
         # when
-        self.owner.update_refineries_from_esi()
+        owner.update_refineries_from_esi()
 
         # then
         self.assertSetEqual(queryset_pks(Refinery.objects.all()), {structure_id})
 
-    @patch(
-        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
-        new=nearest_celestial_stub,
-    )
     @pook.on
     def test_should_not_remove_refineries_after_http_error_in_corporation_structures(
-        self,
+        self, mock_nearest_celestial: Mock
     ):
         # given
-        RefineryFactory(id=1990000000001, owner=self.owner)
-        corporation_id = self.owner.corporation.corporation_id
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        corporation_id = owner.corporation.corporation_id
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
             reply=500,
@@ -341,22 +330,24 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
 
         # when
         with self.assertRaises(OSError):
-            self.owner.update_refineries_from_esi()
+            owner.update_refineries_from_esi()
 
         # then
-        self.assertSetEqual(queryset_pks(Refinery.objects.all()), {1990000000001})
+        self.assertSetEqual(queryset_pks(Refinery.objects.all()), {refinery.id})
 
-    @patch(
-        MODELS_PATH + ".owners.EveSolarSystem.nearest_celestial",
-        new=nearest_celestial_stub,
-    )
     @pook.on
-    def test_should_continue_with_other_refineries_after_http_error(self):
-        structure_1 = RefineryFactory(id=1000000000001, owner=self.owner)
-        structure_2 = RefineryFactory(id=1000000000002, owner=self.owner)
-        corporation_id = self.owner.corporation.corporation_id
-        solar_system_id = 30002542
-        type_id = 35835
+    def test_should_continue_with_other_refineries_after_http_error(
+        self, mock_nearest_celestial: Mock
+    ):
+        owner = OwnerFactory2()
+        structure_1 = RefineryFactory2(owner=owner)
+        structure_2 = RefineryFactory2(owner=owner)
+        mock_nearest_celestial.return_value = EveSolarSystem.NearestCelestial(
+            eve_type=MoonTypeFactory(),
+            eve_object=structure_2.moon.eve_moon,
+            distance=123,
+        )
+        corporation_id = owner.corporation.corporation_id
         structure_2_name = "Auga - Paradise Alpha"
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
@@ -373,8 +364,8 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
                     ],
                     "state": "shield_vulnerable",
                     "structure_id": structure_1.id,
-                    "system_id": solar_system_id,
-                    "type_id": type_id,
+                    "system_id": structure_1.moon.solar_system().id,
+                    "type_id": structure_1.eve_type.id,
                 },
                 {
                     "corporation_id": corporation_id,
@@ -386,8 +377,8 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
                     ],
                     "state": "shield_vulnerable",
                     "structure_id": structure_2.id,
-                    "system_id": solar_system_id,
-                    "type_id": type_id,
+                    "system_id": structure_2.moon.solar_system().id,
+                    "type_id": structure_2.eve_type.id,
                 },
             ],
         )
@@ -402,17 +393,13 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
             response_json={
                 "owner_id": corporation_id,
                 "name": structure_2_name,
-                "position": {
-                    "x": 55028384780.0,
-                    "y": 7310316270.0,
-                    "z": -163686684205.0,
-                },
-                "solar_system_id": solar_system_id,
-                "type_id": type_id,
+                "position": PositionFactory(),
+                "solar_system_id": structure_2.moon.solar_system().id,
+                "type_id": structure_2.eve_type.id,
             },
         )
         # when
-        self.owner.update_refineries_from_esi()
+        owner.update_refineries_from_esi()
 
         # then
         self.assertSetEqual(
@@ -423,13 +410,6 @@ class TestOwnerUpdateRefineries(helpers.TestCaseWithClearCache):
 
 
 class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
     @pook.on
     def test_should_create_started_extraction_with_products(self):
         # given
@@ -437,10 +417,10 @@ class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
         chunk_arrival_at = started_at + dt.timedelta(days=3)
         auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
 
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
         started_by = EveEntityCharacterFactory()
-        notif = MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
@@ -478,19 +458,12 @@ class TestOwnerUpdateExtractions(helpers.TestCaseWithClearCache):
         products_got = {str(x.ore_type.id): x.volume for x in qs}
         self.assertDictEqual(products_got, notif.details["oreVolumeByType"])
         self.assertEqual(extraction.started_by, started_by)
-        self.assertIsNotNone(extraction.value)
+        self.assertGreater(extraction.value, 0)
 
 
 class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
     @pook.on
-    def test_should_create_started_extraction(self):
+    def test_should_create_new_extractions(self):
         class Case(NamedTuple):
             name: str
             started_at: dt.datetime
@@ -521,8 +494,8 @@ class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
                 want=Extraction.Status.COMPLETED,
             ),
         ]
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
         moon_id = refinery.moon.eve_moon.id
 
         for tc in cases:
@@ -558,11 +531,11 @@ class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
                 self.assertEqual(extraction.started_at, tc.started_at)
 
     @pook.on
-    def test_should_identify_canceled_extractions_1(self):
+    def test_should_cancel_extractions_when_they_are_no_longer_returned_1(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(id=1000000000001, owner=owner)
-        started_extraction = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        started_extraction = ExtractionFactory2(
             refinery=refinery,
             started_at=now() - dt.timedelta(hours=2),
             chunk_arrival_at=now() + dt.timedelta(days=4),
@@ -587,12 +560,12 @@ class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
         self.assertTrue(started_extraction.canceled_at)
 
     @pook.on
-    def test_should_identify_canceled_extractions_2(self):
+    def test_should_cancel_extractions_when_they_are_no_longer_returned_2(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(id=1000000000001, owner=owner)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
         moon_id = refinery.moon.eve_moon.id
-        started_extraction = ExtractionFactory(
+        started_extraction = ExtractionFactory2(
             refinery=refinery,
             started_at=now() - dt.timedelta(hours=2),
             chunk_arrival_at=now() + dt.timedelta(days=4),
@@ -630,21 +603,14 @@ class TestOwnerUpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
 
 
 class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-
     def test_should_update_started_extraction(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
-        extraction = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        extraction = ExtractionFactory2(
             refinery=refinery, create_products=False, status=Extraction.Status.STARTED
         )
-        notif = MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
@@ -665,19 +631,19 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
 
     def test_should_cancel_extraction_and_update_products(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
-        extraction = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        extraction = ExtractionFactory2(
             refinery=refinery, create_products=False, status=Extraction.Status.STARTED
         )
-        notif_started = MoonNotificationFactory(
+        notif_started = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
             refinery=refinery,
             started_at=extraction.started_at,
         )
-        notif_canceled = MoonNotificationFactory(
+        notif_canceled = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_CANCELLED,
@@ -700,19 +666,19 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
 
     def test_should_update_ready_extraction(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
-        extraction = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        extraction = ExtractionFactory2(
             refinery=refinery, create_products=False, status=Extraction.Status.READY
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
             refinery=refinery,
             started_at=extraction.started_at,
         )
-        notif = MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
@@ -732,26 +698,26 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
 
     def test_should_update_completed_extraction_when_laser_fired(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
-        extraction = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        extraction = ExtractionFactory2(
             refinery=refinery, create_products=False, status=Extraction.Status.COMPLETED
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
             refinery=refinery,
             started_at=extraction.started_at,
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
             refinery=refinery,
             started_at=extraction.started_at,
         )
-        notif = MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_LASER_FIRED,
@@ -772,26 +738,26 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
 
     def test_should_update_completed_extraction_when_auto_fracture(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
-        extraction = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
+        extraction = ExtractionFactory2(
             refinery=refinery, create_products=False, status=Extraction.Status.COMPLETED
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
             refinery=refinery,
             started_at=extraction.started_at,
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
             refinery=refinery,
             started_at=extraction.started_at,
         )
-        notif = MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_AUTOMATIC_FRACTURE,
@@ -812,30 +778,30 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
 
     def test_should_cancel_extraction_and_update_another(self):
         # given
-        owner = OwnerFactory()
-        refinery_1 = RefineryFactory(owner=owner)
-        extraction_1 = ExtractionFactory(
+        owner = OwnerFactory2()
+        refinery_1 = RefineryFactory2(owner=owner)
+        extraction_1 = ExtractionFactory2(
             refinery=refinery_1, create_products=False, status=Extraction.Status.STARTED
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction_1.auto_fracture_at,
             chunk_arrival_at=extraction_1.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
             refinery=refinery_1,
             started_at=extraction_1.started_at,
         )
-        MoonNotificationFactory(
+        MoonNotificationFactory2(
             auto_fracture_at=extraction_1.auto_fracture_at,
             chunk_arrival_at=extraction_1.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_CANCELLED,
             refinery=refinery_1,
             started_at=extraction_1.started_at,
         )
-        refinery_2 = RefineryFactory(owner=owner)
-        extraction_2 = ExtractionFactory(
+        refinery_2 = RefineryFactory2(owner=owner)
+        extraction_2 = ExtractionFactory2(
             refinery=refinery_2, create_products=False, status=Extraction.Status.STARTED
         )
-        notif = MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=extraction_2.auto_fracture_at,
             chunk_arrival_at=extraction_2.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
@@ -854,10 +820,10 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
 
     def test_should_update_refinery_with_moon_from_notification_when_not_set(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(id=1000000000001, moon=None, owner=owner)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(moon=None, owner=owner)
         em = EveMoonFactory()
-        MoonNotificationFactory(refinery=refinery, eve_moon=em)
+        MoonNotificationFactory2(refinery=refinery, eve_moon=em)
 
         # when
         owner.update_extractions_from_notifications()
@@ -866,16 +832,17 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         refinery.refresh_from_db()
         self.assertEqual(refinery.moon.eve_moon, em)
 
+    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", True)
     def test_should_update_moon_products_when_no_survey_exists(self):
         # given
-        moon = MoonFactory()
-        moon.products.first().delete()
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner, moon=moon)
-        extraction = ExtractionFactory(
+        moon = MoonFactory2()
+        moon.products.all().delete()
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner, moon=moon)
+        extraction = ExtractionFactory2(
             refinery=refinery, create_products=False, status=Extraction.Status.STARTED
         )
-        MoonNotificationFactory(
+        notif = MoonNotificationFactory2(
             auto_fracture_at=extraction.auto_fracture_at,
             chunk_arrival_at=extraction.chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
@@ -886,59 +853,44 @@ class TestOwnerUpdateExtractionsFromNotifications(NoSocketsTestCase):
         owner.update_extractions_from_notifications()
 
         # then
-        self.assertEqual(moon.products.count(), 3)
+        total = sum(x for x in notif.details["oreVolumeByType"].values())
+        want = {
+            id: round(volume / total, 2)
+            for id, volume in notif.details["oreVolumeByType"].items()
+        }
+        qs: QuerySet[MoonProduct] = moon.products.all()
+        got = {str(x.ore_type.id): round(x.amount, 2) for x in qs}
+        self.assertDictEqual(got, want)
 
     @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", False)
     def test_should_not_update_moon_products_when_survey_exists(self):
         # given
-        moon = MoonFactory(products_updated_by=UserFactory())
-        moon.products.first().delete()
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner, moon=moon)
-        extraction = ExtractionFactory(
-            refinery=refinery, status=Extraction.Status.STARTED
+        moon = MoonFactory2()
+        moon.products.all().delete()
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner, moon=moon)
+        extraction = ExtractionFactory2(
+            refinery=refinery, create_products=False, status=Extraction.Status.STARTED
         )
-        calc_extraction = extraction.to_calculated_extraction()
-        NotificationFactory2(
-            extraction=calc_extraction, owner=owner, create_products=True
-        )
-        # when
-        owner.update_extractions_from_notifications()
-        # then
-        self.assertEqual(moon.products.count(), 2)
-
-    @patch(MODELS_PATH + ".owners.MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES", True)
-    def test_should_update_moon_products_when_survey_exists_alternate(self):
-        # given
-
-        moon = MoonFactory(products_updated_by=UserFactory())
-        moon.products.first().delete()
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner, moon=moon)
-        extraction = ExtractionFactory(
-            refinery=refinery, status=Extraction.Status.STARTED
-        )
-        calc_extraction = extraction.to_calculated_extraction()
-        NotificationFactory2(
-            extraction=calc_extraction, owner=owner, create_products=True
+        MoonNotificationFactory2(
+            auto_fracture_at=extraction.auto_fracture_at,
+            chunk_arrival_at=extraction.chunk_arrival_at,
+            notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
+            refinery=refinery,
+            started_at=extraction.started_at,
         )
         # when
         owner.update_extractions_from_notifications()
+
         # then
-        self.assertEqual(moon.products.count(), 3)
+        self.assertEqual(moon.products.count(), 0)
 
 
 class TestOwnerUpdateMiningLedger(helpers.TestCaseWithClearCache):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-
     @pook.on
     def test_should_return_observer_ids_from_esi(self):
         # given
-        owner = OwnerFactory()
+        owner = OwnerFactory2()
         corporation_id = owner.corporation.corporation_id
         observer_id = 1000000000001
         pook.get(
@@ -963,8 +915,8 @@ class TestOwnerUpdateMiningLedger(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_create_new_mining_ledger(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
         corporation_id = owner.corporation.corporation_id
         miner_character = EveEntityCharacterFactory()
         miner_corporation = EveEntityCorporationFactory()
@@ -1007,14 +959,14 @@ class TestOwnerUpdateMiningLedger(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_update_existing_mining_ledger(self):
         # given
-        owner = OwnerFactory()
-        refinery = RefineryFactory(owner=owner)
+        owner = OwnerFactory2()
+        refinery = RefineryFactory2(owner=owner)
         corporation_id = owner.corporation.corporation_id
         miner_character = EveEntityCharacterFactory()
         miner_corporation = EveEntityCorporationFactory()
         last_updated = now().date()
         ore_type_1 = MoonAsteroidsTypeFactory()
-        MiningLedgerRecordFactory(
+        MiningLedgerRecordFactory2(
             refinery=refinery,
             day=last_updated,
             character_id=miner_character.id,
@@ -1061,23 +1013,17 @@ class TestOwnerUpdateMiningLedger(helpers.TestCaseWithClearCache):
 
 
 class TestRefinery(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-
     def test_should_cancel_extraction_when_start_time_not_given(self):
         # given
-        refinery = RefineryFactory()
+        refinery = RefineryFactory2()
         started_1 = now() - dt.timedelta(hours=2)
-        ex_1 = ExtractionFactory(
+        ex_1 = ExtractionFactory2(
             refinery=refinery,
             started_at=started_1,
             status=Extraction.Status.STARTED,
         )
         started_2 = now() - dt.timedelta(hours=2)
-        ex_2 = ExtractionFactory(
+        ex_2 = ExtractionFactory2(
             refinery=refinery,
             started_at=started_2,
             status=Extraction.Status.STARTED,

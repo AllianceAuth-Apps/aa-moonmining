@@ -105,10 +105,10 @@ class Notification(models.Model):
 
     def to_calculated_extraction(self) -> CalculatedExtraction:
         """Generate a calculated extraction from this notification."""
-        params = {"refinery_id": self.details["structureID"]}
-        if self.notif_type == NotificationType.MOONMINING_EXTRACTION_STARTED:
-            params.update(
-                {
+        match self.notif_type:
+            case NotificationType.MOONMINING_EXTRACTION_STARTED:
+                params = {
+                    "refinery_id": self.details["structureID"],
                     "status": CalculatedExtraction.Status.STARTED,
                     "chunk_arrival_at": ldap_time_2_datetime(self.details["readyTime"]),
                     "auto_fracture_at": ldap_time_2_datetime(self.details["autoTime"]),
@@ -118,23 +118,28 @@ class Notification(models.Model):
                         self.details["oreVolumeByType"]
                     ),
                 }
-            )
-        elif self.notif_type == NotificationType.MOONMINING_EXTRACTION_FINISHED:
-            params.update(
-                {
+
+            case NotificationType.MOONMINING_EXTRACTION_CANCELLED:
+                params = {
+                    "refinery_id": self.details["structureID"],
+                    "status": CalculatedExtraction.Status.CANCELED,
+                    "canceled_at": self.timestamp,
+                    "canceled_by": self.details.get("cancelledBy"),
+                }
+
+            case NotificationType.MOONMINING_EXTRACTION_FINISHED:
+                params = {
+                    "refinery_id": self.details["structureID"],
                     "status": CalculatedExtraction.Status.READY,
                     "auto_fracture_at": ldap_time_2_datetime(self.details["autoTime"]),
                     "products": CalculatedExtractionProduct.create_list_from_dict(
                         self.details["oreVolumeByType"]
                     ),
                 }
-            )
-        elif self.notif_type in {
-            NotificationType.MOONMINING_LASER_FIRED,
-            NotificationType.MOONMINING_AUTOMATIC_FRACTURE,
-        }:
-            params.update(
-                {
+
+            case NotificationType.MOONMINING_LASER_FIRED:
+                params = {
+                    "refinery_id": self.details["structureID"],
                     "fractured_by": self.details.get("firedBy"),
                     "fractured_at": self.timestamp,
                     "status": CalculatedExtraction.Status.COMPLETED,
@@ -142,13 +147,18 @@ class Notification(models.Model):
                         self.details["oreVolumeByType"]
                     ),
                 }
-            )
-        elif self.notif_type == NotificationType.MOONMINING_EXTRACTION_CANCELLED:
-            params.update(
-                {
-                    "status": CalculatedExtraction.Status.CANCELED,
-                    "canceled_at": self.timestamp,
-                    "canceled_by": self.details.get("cancelledBy"),
+
+            case NotificationType.MOONMINING_AUTOMATIC_FRACTURE:
+                params = {
+                    "refinery_id": self.details["structureID"],
+                    "fractured_at": self.timestamp,
+                    "status": CalculatedExtraction.Status.COMPLETED,
+                    "products": CalculatedExtractionProduct.create_list_from_dict(
+                        self.details["oreVolumeByType"]
+                    ),
                 }
-            )
+
+            case _:
+                raise NotImplementedError(f"not implemented for: {self.notif_type}")
+
         return CalculatedExtraction(**params)
