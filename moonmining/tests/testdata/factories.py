@@ -223,7 +223,7 @@ class LabelFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[
     style = Label.Style.GREY
 
 
-class MoonFactory2(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Moon]):
+class MoonFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Moon]):
     class Meta:
         model = Moon
         exclude = ("create_products",)
@@ -239,25 +239,23 @@ class MoonFactory2(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[
 
         amount = kwargs["amount"] if "amount" in kwargs else 3
         for p in random_percentages(amount):
-            MoonProductFactory2(moon=obj, amount=p)
+            MoonProductFactory(moon=obj, amount=p)
 
         obj.update_calculated_properties()
 
 
-class MoonProductFactory2(
+class MoonProductFactory(
     factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[MoonProduct]
 ):
     class Meta:
         model = MoonProduct
 
     amount = factory.fuzzy.FuzzyFloat(0, 1)
-    moon = factory.SubFactory(MoonFactory2)
+    moon = factory.SubFactory(MoonFactory)
     ore_type = factory.SubFactory(EveOreTypeFactory)
 
 
-class OwnerFactory2(
-    factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Owner]
-):
+class OwnerFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Owner]):
     class Meta:
         model = Owner
         exclude = ("user",)
@@ -274,7 +272,7 @@ class OwnerFactory2(
     last_update_ok = True
 
 
-class RefineryFactory2(
+class RefineryFactory(
     factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Refinery]
 ):
     class Meta:
@@ -282,12 +280,12 @@ class RefineryFactory2(
 
     id = factory.Sequence(lambda n: n + 1900000000001)
     eve_type = factory.SubFactory(RefineryTypeFactory)
-    moon = factory.SubFactory(MoonFactory2)
+    moon = factory.SubFactory(MoonFactory)
     name = factory.Faker("city")
-    owner = factory.SubFactory(OwnerFactory2)
+    owner = factory.SubFactory(OwnerFactory)
 
 
-class ExtractionFactory2(
+class ExtractionFactory(
     factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Extraction]
 ):
     class Meta:
@@ -302,7 +300,7 @@ class ExtractionFactory2(
     auto_fracture_at = factory.LazyAttribute(
         lambda o: o.chunk_arrival_at + dt.timedelta(hours=3)
     )
-    refinery = factory.SubFactory(RefineryFactory2)
+    refinery = factory.SubFactory(RefineryFactory)
     status = Extraction.Status.STARTED
 
     @factory.post_generation
@@ -313,7 +311,7 @@ class ExtractionFactory2(
         if not obj.refinery.moon:
             return
         for product in obj.refinery.moon.products.all():
-            ExtractionProductFactory2(
+            ExtractionProductFactory(
                 extraction=obj,
                 ore_type=product.ore_type,
                 volume=MOONMINING_VOLUME_PER_DAY
@@ -323,14 +321,14 @@ class ExtractionFactory2(
         obj.update_calculated_properties()
 
 
-class ExtractionProductFactory2(
+class ExtractionProductFactory(
     factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[ExtractionProduct]
 ):
     class Meta:
         model = ExtractionProduct
 
 
-class MiningLedgerRecordFactory2(
+class MiningLedgerRecordFactory(
     factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[MiningLedgerRecord]
 ):
     class Meta:
@@ -343,7 +341,7 @@ class MiningLedgerRecordFactory2(
     quantity = factory.fuzzy.FuzzyInteger(10000)
 
 
-class MoonNotificationFactory2(
+class MoonNotificationFactory(
     factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Notification]
 ):
     """Create moon notification from scratch."""
@@ -372,7 +370,7 @@ class MoonNotificationFactory2(
     auto_fracture_at = factory.LazyAttribute(
         lambda o: o.chunk_arrival_at + dt.timedelta(hours=3)
     )
-    refinery = factory.SubFactory(RefineryFactory2)
+    refinery = factory.SubFactory(RefineryFactory)
     eve_moon = factory.LazyAttribute(lambda o: o.refinery.moon.eve_moon)
 
     notification_id = factory.Sequence(lambda n: 1_990_000_001 + n)

@@ -11,11 +11,11 @@ from app_utils.testdata_factories import UserMainFactory
 from app_utils.testing import NoSocketsTestCase
 
 from moonmining.models import Owner
-from moonmining.tests.testdata.factories_2 import (
-    ExtractionFactory2,
-    MoonFactory2,
-    OwnerFactory2,
-    RefineryFactory2,
+from moonmining.tests.testdata.factories import (
+    ExtractionFactory,
+    MoonFactory,
+    OwnerFactory,
+    RefineryFactory,
 )
 from moonmining.views import general
 
@@ -67,7 +67,7 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
     @patch(MODULE_PATH + ".messages")
     def test_can_update_existing_owner(self, mock_messages, mock_update_owner):
         # given
-        owner = OwnerFactory2(user=self.user)
+        owner = OwnerFactory(user=self.user)
         owner.character_ownership = None
         owner.save()
         token = Mock(spec=Token)
@@ -112,7 +112,7 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
 class TestViewsAreWorking(NoSocketsTestCase):
     def test_should_redirect_to_moons_page(self):
         # given
-        MoonFactory2()
+        MoonFactory()
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access"],
@@ -126,7 +126,7 @@ class TestViewsAreWorking(NoSocketsTestCase):
 
     def test_should_redirect_to_extractions_page(self):
         # given
-        ExtractionFactory2()
+        ExtractionFactory()
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access", "moonmining.extractions_access"],
@@ -140,7 +140,7 @@ class TestViewsAreWorking(NoSocketsTestCase):
 
     def test_should_open_extractions_page(self):
         # given
-        ExtractionFactory2()
+        ExtractionFactory()
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access", "moonmining.extractions_access"],
@@ -153,7 +153,7 @@ class TestViewsAreWorking(NoSocketsTestCase):
 
     def test_should_open_moon_details_page(self):
         # given
-        moon = MoonFactory2()
+        moon = MoonFactory()
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access"],
@@ -166,7 +166,7 @@ class TestViewsAreWorking(NoSocketsTestCase):
 
     def test_should_open_extraction_details_page(self):
         # given
-        extraction = ExtractionFactory2()
+        extraction = ExtractionFactory()
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access", "moonmining.extractions_access"],
@@ -217,7 +217,7 @@ class TestViewsAreWorking(NoSocketsTestCase):
 
     def test_should_handle_empty_refineries_extractions_page(self):
         # given
-        RefineryFactory2()
+        RefineryFactory()
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access", "moonmining.extractions_access"],

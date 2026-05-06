@@ -10,11 +10,11 @@ from app_utils.testing import json_response_to_dict
 
 import moonmining.views.extractions
 from moonmining.models import Extraction, Owner
-from moonmining.tests.testdata.factories_2 import (
-    ExtractionFactory2,
-    MiningLedgerRecordFactory2,
-    OwnerFactory2,
-    RefineryFactory2,
+from moonmining.tests.testdata.factories import (
+    ExtractionFactory,
+    MiningLedgerRecordFactory,
+    OwnerFactory,
+    RefineryFactory,
 )
 
 
@@ -23,10 +23,10 @@ class TestExtractionsData(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.factory = RequestFactory()
-        cls.owner = OwnerFactory2()
-        cls.refinery = RefineryFactory2(owner=cls.owner)
+        cls.owner = OwnerFactory()
+        cls.refinery = RefineryFactory(owner=cls.owner)
         cls.started_by = EveEntityCharacterFactory()
-        cls.extraction = ExtractionFactory2(
+        cls.extraction = ExtractionFactory(
             refinery=cls.refinery,
             chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
             auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
@@ -37,7 +37,7 @@ class TestExtractionsData(TestCase):
 
     def test_should_show_extraction_and_ledger_button(self):
         # given
-        MiningLedgerRecordFactory2(refinery=self.refinery, day=dt.date(2019, 11, 20))
+        MiningLedgerRecordFactory(refinery=self.refinery, day=dt.date(2019, 11, 20))
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=[
@@ -82,7 +82,7 @@ class TestExtractionsData(TestCase):
 
     def test_should_show_extraction_and_no_ledger_button_wo_specific_permission(self):
         # given
-        MiningLedgerRecordFactory2(refinery=self.refinery, day=dt.date(2019, 11, 20))
+        MiningLedgerRecordFactory(refinery=self.refinery, day=dt.date(2019, 11, 20))
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=["moonmining.basic_access", "moonmining.extractions_access"],
@@ -127,9 +127,9 @@ class TestExtractionsData(TestCase):
 
     def test_ignore_refineries_without_moons(self):
         # given
-        MiningLedgerRecordFactory2(refinery=self.refinery, day=dt.date(2019, 11, 20))
-        refinery_2 = RefineryFactory2(moon=None, owner=self.refinery.owner)
-        ExtractionFactory2(
+        MiningLedgerRecordFactory(refinery=self.refinery, day=dt.date(2019, 11, 20))
+        refinery_2 = RefineryFactory(moon=None, owner=self.refinery.owner)
+        ExtractionFactory(
             refinery=refinery_2,
             chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
             auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
@@ -137,7 +137,7 @@ class TestExtractionsData(TestCase):
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.COMPLETED,
         )
-        MiningLedgerRecordFactory2(refinery=refinery_2, day=dt.date(2019, 11, 20))
+        MiningLedgerRecordFactory(refinery=refinery_2, day=dt.date(2019, 11, 20))
         user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=[
@@ -166,10 +166,10 @@ class TestExtractionLedgerData(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.factory = RequestFactory()
-        cls.owner = OwnerFactory2()
-        cls.refinery = RefineryFactory2(owner=cls.owner)
+        cls.owner = OwnerFactory()
+        cls.refinery = RefineryFactory(owner=cls.owner)
         cls.started_by = EveEntityCharacterFactory()
-        cls.extraction = ExtractionFactory2(
+        cls.extraction = ExtractionFactory(
             refinery=cls.refinery,
             chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
             auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
@@ -177,7 +177,7 @@ class TestExtractionLedgerData(TestCase):
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.COMPLETED,
         )
-        MiningLedgerRecordFactory2(refinery=cls.refinery, day=dt.date(2021, 4, 18))
+        MiningLedgerRecordFactory(refinery=cls.refinery, day=dt.date(2021, 4, 18))
 
     def test_should_show_ledger_when_user_has_permission(self):
         # given

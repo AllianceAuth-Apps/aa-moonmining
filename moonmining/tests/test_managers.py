@@ -8,11 +8,11 @@ from eveuniverse.tests.testdata.factories_2 import EveMarketPriceFactory, EveMoo
 from app_utils.testing import NoSocketsTestCase
 
 from moonmining.models import EveOreType, Extraction, Moon
-from moonmining.tests.testdata.factories_2 import (
+from moonmining.tests.testdata.factories import (
     EveOreTypeFactory,
-    ExtractionFactory2,
+    ExtractionFactory,
     OreTypeMaterialFactory,
-    RefineryFactory2,
+    RefineryFactory,
     UserMainMemberFactory,
 )
 from moonmining.tests.testdata.survey_data import fetch_survey_data
@@ -60,8 +60,8 @@ class TestEveOreTypeManager(NoSocketsTestCase):
 class TestExtractionManager(TestCase):
     def test_should_update_completed(self):
         # given
-        refinery = RefineryFactory2()
-        extraction_1 = ExtractionFactory2(
+        refinery = RefineryFactory()
+        extraction_1 = ExtractionFactory(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 1, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 12, 0, tzinfo=dt.timezone.utc),
@@ -69,7 +69,7 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.STARTED,
             create_products=False,
         )
-        extraction_2 = ExtractionFactory2(
+        extraction_2 = ExtractionFactory(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 2, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 15, 0, tzinfo=dt.timezone.utc),
@@ -77,7 +77,7 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.STARTED,
             create_products=False,
         )
-        extraction_3 = ExtractionFactory2(
+        extraction_3 = ExtractionFactory(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 3, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 18, 0, tzinfo=dt.timezone.utc),
@@ -85,7 +85,7 @@ class TestExtractionManager(TestCase):
             status=Extraction.Status.STARTED,
             create_products=False,
         )
-        extraction_4 = ExtractionFactory2(
+        extraction_4 = ExtractionFactory(
             refinery=refinery,
             started_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=dt.timezone.utc),
             chunk_arrival_at=dt.datetime(2021, 1, 1, 4, 0, tzinfo=dt.timezone.utc),

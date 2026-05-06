@@ -30,7 +30,7 @@ from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveMoon
 
 from moonmining.models import EveOreType, Moon, MoonProduct
-from moonmining.tests.testdata.factories_2 import random_percentages
+from moonmining.tests.testdata.factories import random_percentages
 
 MAX_MOONS = 100
 

@@ -22,12 +22,12 @@ from moonmining import tasks
 from moonmining.models import Refinery
 from moonmining.tests import helpers
 from moonmining.tests.helpers import datetime_to_ldap
-from moonmining.tests.testdata.factories_2 import (
+from moonmining.tests.testdata.factories import (
     EveOreTypeFactory,
-    ExtractionFactory2,
+    ExtractionFactory,
     MoonAsteroidsTypeFactory,
-    OwnerFactory2,
-    RefineryFactory2,
+    OwnerFactory,
+    RefineryFactory,
     RefineryTypeFactory,
     UserMainMemberFactory,
     UserMainOwnerFactory,
@@ -59,7 +59,7 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_update_all_from_esi(self, mock_nearest_celestial: Mock):
         # given
-        owner = OwnerFactory2()
+        owner = OwnerFactory()
         corporation_id = owner.corporation.corporation_id
         character_id = owner.character_ownership.character.character_id
         eve_moon = EveMoonFactory()
@@ -182,7 +182,7 @@ class TestRunRegularUpdates(helpers.TestCaseWithClearCache):
     def test_should_not_update_disabled_owner(self, mock_nearest_celestial: Mock):
         # given
         last_update_at = now() - dt.timedelta(hours=1)
-        owner = OwnerFactory2(
+        owner = OwnerFactory(
             is_enabled=False, last_update_at=last_update_at, last_update_ok=None
         )
 
@@ -200,9 +200,9 @@ class TestUpdateOtherTasks(helpers.TestCaseWithClearCache):
     @pook.on
     def test_should_update_mining_ledgers(self):
         # given
-        owner = OwnerFactory2()
+        owner = OwnerFactory()
         corporation_id = owner.corporation.corporation_id
-        refinery = RefineryFactory2(owner=owner)
+        refinery = RefineryFactory(owner=owner)
         pook.get(
             make_esi_url(f"corporation/{corporation_id}/mining/observers"),
             reply=200,
@@ -249,9 +249,9 @@ class TestUpdateOtherTasks(helpers.TestCaseWithClearCache):
     ):
         # given
         mock_update_prices.return_value = None
-        owner = OwnerFactory2()
-        refinery = RefineryFactory2(owner=owner)
-        extraction = ExtractionFactory2(refinery=refinery)
+        owner = OwnerFactory()
+        refinery = RefineryFactory(owner=owner)
+        extraction = ExtractionFactory(refinery=refinery)
 
         # when
         tasks.run_calculated_properties_update.delay()

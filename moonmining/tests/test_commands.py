@@ -9,7 +9,7 @@ from eveuniverse.tests.testdata.factories_2 import EveMoonFactory
 from app_utils.testing import NoSocketsTestCase
 
 from moonmining.models import Moon
-from moonmining.tests.testdata.factories_2 import MoonAsteroidsTypeFactory
+from moonmining.tests.testdata.factories import MoonAsteroidsTypeFactory
 
 MODELS_PATH = "moonmining.models.owners"
 PACKAGE_PATH = "moonmining.management.commands"

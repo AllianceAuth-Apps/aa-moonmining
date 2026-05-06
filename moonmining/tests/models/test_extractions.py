@@ -4,11 +4,11 @@ from app_utils.testing import NoSocketsTestCase
 
 from moonmining.core import CalculatedExtraction
 from moonmining.models import EveOreType, Extraction, OreQualityClass
-from moonmining.tests.testdata.factories_2 import (
+from moonmining.tests.testdata.factories import (
     EveOreTypeFactory,
-    ExtractionFactory2,
+    ExtractionFactory,
     OreTypeMaterialFactory,
-    RefineryFactory2,
+    RefineryFactory,
 )
 
 
@@ -47,7 +47,7 @@ class TestEveOreTypeProfileUrl(NoSocketsTestCase):
 class TestExtraction(NoSocketsTestCase):
     def test_should_convert_to_calculated_extraction(self):
         # given
-        refinery = RefineryFactory2()
+        refinery = RefineryFactory()
         my_map = [
             (Extraction.Status.STARTED, CalculatedExtraction.Status.STARTED),
             (Extraction.Status.CANCELED, CalculatedExtraction.Status.CANCELED),
@@ -56,7 +56,7 @@ class TestExtraction(NoSocketsTestCase):
         ]
         for in_status, out_status in my_map:
             with self.subTest(status=in_status):
-                extraction = ExtractionFactory2(status=in_status, refinery=refinery)
+                extraction = ExtractionFactory(status=in_status, refinery=refinery)
                 # when
                 obj = extraction.to_calculated_extraction()
                 # then

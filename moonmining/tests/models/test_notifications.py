@@ -7,17 +7,14 @@ from app_utils.testing import NoSocketsTestCase
 
 from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
 from moonmining.models import NotificationType
-from moonmining.tests.testdata.factories_2 import (
-    MoonNotificationFactory2,
-    RefineryFactory2,
-)
+from moonmining.tests.testdata.factories import MoonNotificationFactory, RefineryFactory
 
 
 class TestNotification_ToCalculatedExtraction(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.refinery = RefineryFactory2()
+        cls.refinery = RefineryFactory()
 
     def test_should_convert_started_notification(self):
         # given
@@ -25,7 +22,7 @@ class TestNotification_ToCalculatedExtraction(NoSocketsTestCase):
         chunk_arrival_at = started_at + dt.timedelta(days=3)
         auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
         started_by = EveEntityCharacterFactory()
-        notif = MoonNotificationFactory2(
+        notif = MoonNotificationFactory(
             auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_STARTED,
@@ -56,7 +53,7 @@ class TestNotification_ToCalculatedExtraction(NoSocketsTestCase):
         chunk_arrival_at = started_at + dt.timedelta(days=3)
         auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
         canceled_by = EveEntityCharacterFactory()
-        notif = MoonNotificationFactory2(
+        notif = MoonNotificationFactory(
             auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_CANCELLED,
@@ -79,7 +76,7 @@ class TestNotification_ToCalculatedExtraction(NoSocketsTestCase):
         started_at = now().replace(microsecond=0) - dt.timedelta(hours=1)
         chunk_arrival_at = started_at + dt.timedelta(days=3)
         auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
-        notif = MoonNotificationFactory2(
+        notif = MoonNotificationFactory(
             auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_EXTRACTION_FINISHED,
@@ -106,7 +103,7 @@ class TestNotification_ToCalculatedExtraction(NoSocketsTestCase):
         chunk_arrival_at = started_at + dt.timedelta(days=3)
         auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
         fractured_by = EveEntityCharacterFactory()
-        notif = MoonNotificationFactory2(
+        notif = MoonNotificationFactory(
             auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_LASER_FIRED,
@@ -134,7 +131,7 @@ class TestNotification_ToCalculatedExtraction(NoSocketsTestCase):
         started_at = now().replace(microsecond=0) - dt.timedelta(hours=1)
         chunk_arrival_at = started_at + dt.timedelta(days=3)
         auto_fracture_at = chunk_arrival_at + dt.timedelta(hours=2)
-        notif = MoonNotificationFactory2(
+        notif = MoonNotificationFactory(
             auto_fracture_at=auto_fracture_at,
             chunk_arrival_at=chunk_arrival_at,
             notif_type=NotificationType.MOONMINING_AUTOMATIC_FRACTURE,

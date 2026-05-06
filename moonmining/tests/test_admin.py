@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from app_utils.testdata_factories import UserFactory
 
-from moonmining.tests.testdata.factories_2 import EveOreTypeFactory
+from moonmining.tests.testdata.factories import EveOreTypeFactory
 
 
 class TestAdminUI(TestCase):

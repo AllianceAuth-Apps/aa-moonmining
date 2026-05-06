@@ -9,11 +9,11 @@ from app_utils.testing import json_response_to_dict, json_response_to_python
 
 from moonmining.constants import EveGroupId
 from moonmining.models import Owner
-from moonmining.tests.testdata.factories_2 import (
+from moonmining.tests.testdata.factories import (
     EveOreTypeFactory,
-    MiningLedgerRecordFactory2,
-    MoonFactory2,
-    RefineryFactory2,
+    MiningLedgerRecordFactory,
+    MoonFactory,
+    RefineryFactory,
 )
 
 MODULE_PATH = "moonmining.views.reports"
@@ -23,8 +23,8 @@ class TestReportsData(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.moon = MoonFactory2()
-        cls.refinery = RefineryFactory2(moon=cls.moon)
+        cls.moon = MoonFactory()
+        cls.refinery = RefineryFactory(moon=cls.moon)
         cls.user = UserMainFactory(
             main_character__scopes=Owner.esi_scopes(),
             permissions__=[
@@ -50,35 +50,35 @@ class TestReportsData(TestCase):
         months_3 = dt.datetime(2020, 10, 15, 12, 0, tzinfo=dt.timezone.utc)
         ore_1 = EveOreTypeFactory(create_price__average_price=10)
         ore_2 = EveOreTypeFactory(create_price__average_price=20)
-        MiningLedgerRecordFactory2(
+        MiningLedgerRecordFactory(
             refinery=self.refinery,
             day=today.date() - dt.timedelta(days=1),
             ore_type=ore_1,
             quantity=100,
             user=self.user,
         )
-        MiningLedgerRecordFactory2(
+        MiningLedgerRecordFactory(
             refinery=self.refinery,
             day=today.date() - dt.timedelta(days=2),
             ore_type=ore_2,
             quantity=200,
             user=self.user,
         )
-        MiningLedgerRecordFactory2(
+        MiningLedgerRecordFactory(
             refinery=self.refinery,
             day=months_1.date() - dt.timedelta(days=1),
             ore_type=ore_2,
             quantity=200,
             user=self.user,
         )
-        MiningLedgerRecordFactory2(
+        MiningLedgerRecordFactory(
             refinery=self.refinery,
             day=months_2.date() - dt.timedelta(days=1),
             ore_type=ore_2,
             quantity=500,
             user=self.user,
         )
-        MiningLedgerRecordFactory2(
+        MiningLedgerRecordFactory(
             refinery=self.refinery,
             day=months_3.date() - dt.timedelta(days=1),
             ore_type=ore_2,
@@ -107,8 +107,8 @@ class TestReportsData(TestCase):
 
     def test_should_return_user_uploads_data(self):
         # given
-        MoonFactory2(products_updated_by=self.user)
-        MoonFactory2(products_updated_by=self.user)
+        MoonFactory(products_updated_by=self.user)
+        MoonFactory(products_updated_by=self.user)
         self.client.force_login(self.user)
 
         # when
