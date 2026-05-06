@@ -7,6 +7,7 @@ import yaml
 
 from django.db.models import QuerySet
 from django.utils.timezone import now
+from esi.exceptions import HTTPError
 from esi.models import Token
 from eveuniverse.models import EveSolarSystem
 from eveuniverse.tests.testdata.factories_2 import (
@@ -329,7 +330,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
 
         # when
-        with self.assertRaises(OSError):
+        with self.assertRaises(HTTPError):
             owner.update_refineries_from_esi()
 
         # then
