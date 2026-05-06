@@ -2,79 +2,96 @@ import datetime as dt
 from unittest.mock import patch
 
 from django.utils.timezone import now
-from eveuniverse.models import EveMarketPrice
+from eveuniverse.tests.testdata.factories_2 import EveTypeFactory
 
-from app_utils.testdata_factories import UserFactory
 from app_utils.testing import NoSocketsTestCase
 
-from moonmining.constants import EveTypeId
+from moonmining.constants import EveGroupId
 from moonmining.core import CalculatedExtractionProduct
-from moonmining.models import EveOreType, OreRarityClass
-from moonmining.tests import helpers
-from moonmining.tests.testdata.factories import (
-    CalculatedExtractionFactory,
-    ExtractionFactory,
-    MoonFactory,
-    MoonProductFactory,
-    RefineryFactory,
+from moonmining.models import OreRarityClass
+from moonmining.tests.testdata.factories_2 import (
+    EveOreTypeFactory,
+    ExtractionFactory2,
+    MoonAsteroidsTypeFactory,
+    MoonFactory2,
+    MoonNotificationFactory2,
+    MoonProductFactory2,
+    RefineryFactory2,
+    UserMainMemberFactory,
 )
-from moonmining.tests.testdata.load_allianceauth import load_allianceauth
-from moonmining.tests.testdata.load_eveuniverse import load_eveuniverse
 
 MODELS_PATH = "moonmining.models"
 
 
-class TestMoonUpdateValue(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-
+class TestMoon_CalcValue(NoSocketsTestCase):
     @patch(MODELS_PATH + ".moons.MOONMINING_VOLUME_PER_MONTH", 1000000)
-    @patch(MODELS_PATH + ".extractions.MOONMINING_REPROCESSING_YIELD", 0.7)
     def test_should_calc_correct_value(self):
         # given
-        moon = MoonFactory(create_products=False)
-        helpers.generate_market_prices(use_process_pricing=False)
-        MoonProductFactory(moon=moon, ore_type_id=EveTypeId.CINNABAR, amount=0.19)
-        MoonProductFactory(moon=moon, ore_type_id=EveTypeId.CUBIC_BISTOT, amount=0.23)
-        MoonProductFactory(
-            moon=moon, ore_type_id=EveTypeId.FLAWLESS_ARKONOR, amount=0.25
+        ore_1 = EveOreTypeFactory(
+            create_price__average_price=2400.0, volume=10  # CINNABAR
         )
-        MoonProductFactory(
-            moon=moon, ore_type_id=EveTypeId.STABLE_VELDSPAR, amount=0.33
+        ore_2 = EveOreTypeFactory(
+            create_price__average_price=609.0, volume=16  # CUBIC_BISTOT
         )
+        ore_3 = EveOreTypeFactory(
+            create_price__average_price=310.9, volume=16  # FLAWLESS_ARKONOR
+        )
+        ore_4 = EveOreTypeFactory(
+            create_price__average_price=7.7, volume=0.1  # STABLE_VELDSPAR
+        )
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=ore_2, amount=0.23)
+        MoonProductFactory2(moon=moon, ore_type=ore_3, amount=0.25)
+        MoonProductFactory2(moon=moon, ore_type=ore_4, amount=0.33)
+
         # when
         result = moon.calc_value()
+
         # then
         self.assertEqual(result, 84622187.5)
 
     def test_should_return_zero_if_prices_are_missing(self):
         # given
-        moon = MoonFactory()
+        ore_1 = EveOreTypeFactory(create_price=False, volume=10)  # CINNABAR
+        ore_2 = EveOreTypeFactory(create_price=False, volume=16)  # CUBIC_BISTOT
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=ore_2, amount=0.23)
+
         # when
         result = moon.calc_value()
+
         # then
         self.assertEqual(result, 0)
 
 
-class TestMoonCalcRarityClass(NoSocketsTestCase):
+class TestMoon_CalcRarityClass(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        load_eveuniverse()
-        cls.ore_type_r0 = EveOreType.objects.get(id=EveTypeId.CUBIC_BISTOT)
-        cls.ore_type_r4 = EveOreType.objects.get(id=EveTypeId.BITUMENS)
-        cls.ore_type_r8 = EveOreType.objects.get(id=EveTypeId.EUXENITE)
-        cls.ore_type_r16 = EveOreType.objects.get(id=EveTypeId.CHROMITE)
-        cls.ore_type_r32 = EveOreType.objects.get(id=EveTypeId.CINNABAR)
-        cls.ore_type_r64 = EveOreType.objects.get(id=EveTypeId.XENOTIME)
+        cls.ore_type_r0 = EveTypeFactory()
+        cls.ore_type_r4 = MoonAsteroidsTypeFactory(
+            eve_group__id=EveGroupId.UBIQUITOUS_MOON_ASTEROIDS
+        )
+        cls.ore_type_r8 = MoonAsteroidsTypeFactory(
+            eve_group__id=EveGroupId.COMMON_MOON_ASTEROIDS
+        )
+        cls.ore_type_r16 = MoonAsteroidsTypeFactory(
+            eve_group__id=EveGroupId.UNCOMMON_MOON_ASTEROIDS
+        )
+        cls.ore_type_r32 = MoonAsteroidsTypeFactory(
+            eve_group__id=EveGroupId.RARE_MOON_ASTEROIDS
+        )
+        cls.ore_type_r64 = MoonAsteroidsTypeFactory(
+            eve_group__id=EveGroupId.EXCEPTIONAL_MOON_ASTEROIDS
+        )
 
     def test_should_return_R4(self):
         # given
-        moon = MoonFactory(create_products=False)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r0, amount=0.23)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r4, amount=0.19)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r0, amount=0.23)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r4, amount=0.19)
         # when
         result = moon.calc_rarity_class()
         # then
@@ -82,10 +99,10 @@ class TestMoonCalcRarityClass(NoSocketsTestCase):
 
     def test_should_return_R8(self):
         # given
-        moon = MoonFactory(create_products=False)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r8, amount=0.25)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r0, amount=0.23)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r4, amount=0.19)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r8, amount=0.25)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r0, amount=0.23)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r4, amount=0.19)
         # when
         result = moon.calc_rarity_class()
         # then
@@ -93,10 +110,10 @@ class TestMoonCalcRarityClass(NoSocketsTestCase):
 
     def test_should_return_R16(self):
         # given
-        moon = MoonFactory(create_products=False)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r4, amount=0.19)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r16, amount=0.23)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r8, amount=0.25)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r4, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r16, amount=0.23)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r8, amount=0.25)
         # when
         result = moon.calc_rarity_class()
         # then
@@ -104,10 +121,10 @@ class TestMoonCalcRarityClass(NoSocketsTestCase):
 
     def test_should_return_R32(self):
         # given
-        moon = MoonFactory(create_products=False)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r16, amount=0.23)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r32, amount=0.19)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r8, amount=0.25)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r16, amount=0.23)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r32, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r8, amount=0.25)
         # when
         result = moon.calc_rarity_class()
         # then
@@ -115,10 +132,10 @@ class TestMoonCalcRarityClass(NoSocketsTestCase):
 
     def test_should_return_R64(self):
         # given
-        moon = MoonFactory(create_products=False)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r16, amount=0.23)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r32, amount=0.19)
-        MoonProductFactory(moon=moon, ore_type=self.ore_type_r64, amount=0.25)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r16, amount=0.23)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r32, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=self.ore_type_r64, amount=0.25)
         # when
         result = moon.calc_rarity_class()
         # then
@@ -126,95 +143,108 @@ class TestMoonCalcRarityClass(NoSocketsTestCase):
 
     def test_should_handle_moon_without_products(self):
         # given
-        moon = MoonFactory(create_products=False)
+        moon = MoonFactory2(create_products=False)
         # when
         result = moon.calc_rarity_class()
         # then
         self.assertEqual(result, OreRarityClass.NONE)
 
 
-class TestMoonProductsSorted(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-
-    def setUp(self) -> None:
-        helpers.generate_market_prices(use_process_pricing=False)
-
+class TestMoon_ProductsSorted(NoSocketsTestCase):
     def test_should_return_moon_products_in_order(self):
         # given
-        moon = MoonFactory()
+        ore_1 = EveOreTypeFactory(name="Xenotime")
+        ore_2 = EveOreTypeFactory(name="Chromite")
+        ore_3 = EveOreTypeFactory(name="Euxenite")
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1)
+        MoonProductFactory2(moon=moon, ore_type=ore_2)
+        MoonProductFactory2(moon=moon, ore_type=ore_3)
+
         # when
         result = moon.products_sorted()
+
         # then
         ore_types = list(result.values_list("ore_type__name", flat=True))
         self.assertListEqual(["Chromite", "Euxenite", "Xenotime"], ore_types)
 
     def test_should_handle_products_without_price(self):
         # given
-        moon = MoonFactory()
-        moon_product = moon.products.first()
-        EveMarketPrice.objects.filter(
-            eve_type_id=moon_product.ore_type_id
-        ).average_price = None
+        ore_1 = EveOreTypeFactory(name="Xenotime", create_price=False)
+        ore_2 = EveOreTypeFactory(name="Chromite", create_price=False)
+        ore_3 = EveOreTypeFactory(name="Euxenite", create_price=False)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1)
+        MoonProductFactory2(moon=moon, ore_type=ore_2)
+        MoonProductFactory2(moon=moon, ore_type=ore_3)
+
         # when
         result = moon.products_sorted()
+
         # then
         ore_types = list(result.values_list("ore_type__name", flat=True))
         self.assertListEqual(["Chromite", "Euxenite", "Xenotime"], ore_types)
 
     def test_should_handle_products_without_amount(self):
         # given
-        moon = MoonFactory()
-        moon_product = moon.products.first()
-        moon_product.amount = 0
-        moon_product.save()
+        ore_1 = EveOreTypeFactory(name="Xenotime", create_price=False)
+        ore_2 = EveOreTypeFactory(name="Chromite", create_price=False)
+        ore_3 = EveOreTypeFactory(name="Euxenite", create_price=False)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1, amount=0)
+        MoonProductFactory2(moon=moon, ore_type=ore_2)
+        MoonProductFactory2(moon=moon, ore_type=ore_3)
+
         # when
         result = moon.products_sorted()
+
         # then
         ore_types = list(result.values_list("ore_type__name", flat=True))
         self.assertListEqual(["Chromite", "Euxenite", "Xenotime"], ore_types)
 
     def test_should_handle_products_without_volume(self):
         # given
-        moon = MoonFactory()
-        moon_product = moon.products.first()
-        volume_backup = moon_product.ore_type.volume
-        moon_product.ore_type.volume = None
-        moon_product.ore_type.save()
+        ore_1 = EveOreTypeFactory(name="Xenotime", create_price=False, volume=None)
+        ore_2 = EveOreTypeFactory(name="Chromite", create_price=False)
+        ore_3 = EveOreTypeFactory(name="Euxenite", create_price=False)
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1)
+        MoonProductFactory2(moon=moon, ore_type=ore_2)
+        MoonProductFactory2(moon=moon, ore_type=ore_3)
+
         # when
         result = moon.products_sorted()
+
         # then
-        moon_product.ore_type.volume = volume_backup
-        moon_product.ore_type.save()
         ore_types = list(result.values_list("ore_type__name", flat=True))
         self.assertListEqual(["Chromite", "Euxenite", "Xenotime"], ore_types)
 
 
-class TestMoonOverwriteProducts(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-        helpers.generate_market_prices()
-        load_allianceauth()
-
-    def test_should_overwrite_existing_estimates(self):
+@patch(MODELS_PATH + ".moons.MOONMINING_VOLUME_PER_DAY", 960400)
+class TestMoon_UpdateProductsFromCalculatedExtraction(NoSocketsTestCase):
+    def test_should_overwrite_existing_amounts(self):
         # given
-        moon = MoonFactory()
-        extraction = CalculatedExtractionFactory()
-        ores = {"45506": 7_683_200, "46676": 9_604_000}
+        ore_1 = EveOreTypeFactory()
+        ore_2 = EveOreTypeFactory()
+        moon = MoonFactory2(create_products=False)
+        MoonProductFactory2(moon=moon, ore_type=ore_1, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=ore_2, amount=0.23)
+        refinery = RefineryFactory2(moon=moon)
+        notif = MoonNotificationFactory2(refinery=refinery)
+        extraction = notif.to_calculated_extraction()
+        ores = {str(ore_1.id): 7_683_200, str(ore_2.id): 9_604_000}
         extraction.products = CalculatedExtractionProduct.create_list_from_dict(ores)
+
         # when
         result = moon.update_products_from_calculated_extraction(extraction)
+
         # then
         self.assertTrue(result)
         self.assertAlmostEqual(
-            moon.products.get(ore_type_id=45506).amount, 0.4, places=2
+            moon.products.get(ore_type_id=ore_1.id).amount, 0.4, places=2
         )
         self.assertAlmostEqual(
-            moon.products.get(ore_type_id=46676).amount, 0.5, places=2
+            moon.products.get(ore_type_id=ore_2.id).amount, 0.5, places=2
         )
         self.assertIsNone(moon.products_updated_by)
         self.assertIsNotNone(moon.products_updated_at)
@@ -224,21 +254,39 @@ class TestMoonOverwriteProducts(NoSocketsTestCase):
 
     def test_should_not_overwrite_existing_survey(self):
         # given
-        moon = MoonFactory(products_updated_by=UserFactory())
-        extraction = CalculatedExtractionFactory()
-        ores = {"45506": 7_683_200, "46676": 9_604_000}
+        ore_1 = EveOreTypeFactory()
+        ore_2 = EveOreTypeFactory()
+        moon = MoonFactory2(
+            create_products=False, products_updated_by=UserMainMemberFactory()
+        )
+        MoonProductFactory2(moon=moon, ore_type=ore_1, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=ore_2, amount=0.23)
+        refinery = RefineryFactory2(moon=moon)
+        notif = MoonNotificationFactory2(refinery=refinery)
+        extraction = notif.to_calculated_extraction()
+        ores = {str(ore_1.id): 7_683_200, str(ore_2.id): 9_604_000}
         extraction.products = CalculatedExtractionProduct.create_list_from_dict(ores)
+
         # when
         result = moon.update_products_from_calculated_extraction(extraction)
+
         # then
         self.assertFalse(result)
 
     def test_should_overwrite_existing_survey_when_requested(self):
-        # given
-        moon = MoonFactory(products_updated_by=UserFactory())
-        extraction = CalculatedExtractionFactory()
-        ores = {"45506": 7_683_200, "46676": 9_604_000}
+        ore_1 = EveOreTypeFactory()
+        ore_2 = EveOreTypeFactory()
+        moon = MoonFactory2(
+            create_products=False, products_updated_by=UserMainMemberFactory()
+        )
+        MoonProductFactory2(moon=moon, ore_type=ore_1, amount=0.19)
+        MoonProductFactory2(moon=moon, ore_type=ore_2, amount=0.23)
+        refinery = RefineryFactory2(moon=moon)
+        notif = MoonNotificationFactory2(refinery=refinery)
+        extraction = notif.to_calculated_extraction()
+        ores = {str(ore_1.id): 7_683_200, str(ore_2.id): 9_604_000}
         extraction.products = CalculatedExtractionProduct.create_list_from_dict(ores)
+
         # when
         result = moon.update_products_from_calculated_extraction(
             extraction, overwrite_survey=True
@@ -248,21 +296,30 @@ class TestMoonOverwriteProducts(NoSocketsTestCase):
 
     def test_should_not_overwrite_from_calculated_extraction_without_products(self):
         # given
-        moon = MoonFactory()
-        extraction = CalculatedExtractionFactory(products=[])
+        moon = MoonFactory2()
+        refinery = RefineryFactory2(moon=moon)
+        notif = MoonNotificationFactory2(refinery=refinery)
+        extraction = notif.to_calculated_extraction()
+        extraction.products = []
+
         # when
         result = moon.update_products_from_calculated_extraction(extraction)
+
         # then
         self.assertFalse(result)
         self.assertTrue(moon.products.exists())
 
+
+class TestMoon_UpdateProductsFromLatestExtraction(NoSocketsTestCase):
     def test_should_overwrite_products_from_latest_extraction(self):
         # given
-        moon = MoonFactory()
-        refinery = RefineryFactory(moon=moon)
-        ExtractionFactory(refinery=refinery)
+        moon = MoonFactory2()
+        refinery = RefineryFactory2(moon=moon)
+        ExtractionFactory2(refinery=refinery)
         moon.products.all().delete()
+
         # when
         moon.update_products_from_latest_extraction()
+
         # then
         self.assertGreater(moon.products.count(), 0)

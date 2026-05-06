@@ -30,6 +30,7 @@ from moonmining.models import (
     EveOreTypeExtras,
     Extraction,
     ExtractionProduct,
+    Label,
     MiningLedgerRecord,
     Moon,
     MoonProduct,
@@ -62,7 +63,7 @@ def make_esi_url(path: str) -> str:
     return url
 
 
-def _random_percentages(parts: int) -> List[float]:
+def random_percentages(parts: int) -> List[float]:
     percentages = []
     total = 0
     for _ in range(parts):
@@ -126,7 +127,7 @@ class EveOreTypeFactory(MoonAsteroidsTypeFactory):
 
     @factory.post_generation
     def ore_quality_class(obj: EveOreType, create, extracted, **kwargs):
-        if not create:
+        if not create or extracted is False:
             return
 
         try:
@@ -161,8 +162,10 @@ class EveOreTypeFactory(MoonAsteroidsTypeFactory):
     def create_price(obj: EveOreType, create, extracted, **kwargs):
         if not create or extracted is False:
             return
-
-        price = EveMarketPriceFactory(eve_type=obj)
+        params = {"eve_type": obj}
+        if "average_price" in kwargs:
+            params["average_price"] = kwargs["average_price"]
+        price = EveMarketPriceFactory(**params)
         EveOreTypeExtras.objects.update_or_create(
             ore_type=obj,
             defaults={
@@ -211,6 +214,15 @@ class UserMainMemberFactory(UserMainFactory):
     ]
 
 
+class LabelFactory(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Label]):
+    class Meta:
+        model = Label
+
+    name = factory.Sequence(lambda n: f"test label #{n}")
+    description = factory.Faker("paragraph")
+    style = Label.Style.GREY
+
+
 class MoonFactory2(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[Moon]):
     class Meta:
         model = Moon
@@ -225,7 +237,8 @@ class MoonFactory2(factory.django.DjangoModelFactory, metaclass=BaseMetaFactory[
         if not create or extracted is False:
             return
 
-        for p in _random_percentages(3):
+        amount = kwargs["amount"] if "amount" in kwargs else 3
+        for p in random_percentages(amount):
             MoonProductFactory2(moon=obj, amount=p)
 
         obj.update_calculated_properties()
@@ -419,7 +432,7 @@ class MoonNotificationFactory2(
             }
         else:
             ore_volume_by_type = {
-                EveOreTypeFactory().id: p * volume for p in _random_percentages(3)
+                EveOreTypeFactory().id: p * volume for p in random_percentages(3)
             }
 
         match NotificationType(self.notif_type):

@@ -52,6 +52,3 @@ pylint:
 
 graph_models:
 	python $(MANAGE_PY_PATH) graph_models $(package) --arrow-shape normal -o $(appname)_models.png
-
-create_testdata:
-	python $(MANAGE_PY_PATH) test $(package).tests.testdata.create_eveuniverse --keepdb -v 2
