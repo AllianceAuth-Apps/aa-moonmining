@@ -10,13 +10,12 @@ from esi.decorators import token_required
 from allianceauth.eveonline.models import EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.allianceauth import notify_admins
-from app_utils.logging import LoggerAddTag
 
 from moonmining import __title__, tasks
 from moonmining.app_settings import MOONMINING_ADMIN_NOTIFICATIONS_ENABLED
 from moonmining.models import Owner
 
-logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+logger = get_extension_logger(__name__)
 
 
 @login_required

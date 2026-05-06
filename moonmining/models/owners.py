@@ -19,7 +19,6 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.allianceauth import notify_admins_throttled
-from app_utils.logging import LoggerAddTag
 from app_utils.views import bootstrap_icon_plus_name_html
 
 from moonmining import __title__
@@ -32,7 +31,7 @@ from moonmining.models.moons import Moon
 from moonmining.models.notifications import Notification, NotificationType
 from moonmining.providers import esi
 
-logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+logger = get_extension_logger(__name__)
 
 
 class MiningLedgerRecord(models.Model):

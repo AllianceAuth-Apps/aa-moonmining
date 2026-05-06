@@ -17,9 +17,7 @@ from eveuniverse.models import EveMoon
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
-from app_utils.logging import LoggerAddTag
 
-from . import __title__
 from .app_settings import (
     MOONMINING_REPROCESSING_YIELD,
     MOONMINING_USE_REPROCESS_PRICING,
@@ -30,7 +28,7 @@ from .helpers import eve_entity_get_or_create_esi_safe
 
 MAX_THREAD_WORKERS = 20
 BULK_BATCH_SIZE = 500
-logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+logger = get_extension_logger(__name__)
 
 SurveyProcessResult = namedtuple(
     "SurveyProcessResult", ["moon_name", "success", "error_name"]

@@ -10,12 +10,10 @@ from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
-from app_utils.logging import LoggerAddTag
 
-from . import __title__
 from .models import EveOreType, Extraction, Moon, Owner, Refinery
 
-logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+logger = get_extension_logger(__name__)
 
 TASK_PRIORITY_LOWER = 6
 

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [3.0.0] - TBD
 
+### Changed
+
+- Breaking change: Removed support for Python 3.8 & 3.9
+- Migrated ESI client to OpenAPI
+- Removed logger tag
+- Modernized test suite
+
 ### Fixed
 
 - Extractions not detected as canceled when refinery has no other extractions
