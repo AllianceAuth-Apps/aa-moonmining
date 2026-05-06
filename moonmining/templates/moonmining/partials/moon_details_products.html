@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load moonmining %}
 
-{% if product_rows|length_is:"0" %}
+{% if product_rows|length == 0 %}
     <p class="text-warning"><strong>
         {% translate 'There is no survey for this moon in the database.' %}
     </strong></p>

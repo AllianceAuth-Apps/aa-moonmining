@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Breaking change: Removed support for Python 3.8 & 3.9
+- Added support for AA 5
 - Migrated ESI client to OpenAPI
 - Removed logger tag
 - Modernized test suite

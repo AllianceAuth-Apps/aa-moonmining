@@ -165,14 +165,15 @@ class Owner(models.Model):
         """Update all refineries from ESI."""
         logger.info("%s: Updating refineries...", self)
         refinery_ids = self._fetch_refineries_from_esi()
-        for id in refinery_ids:
+        for refinery_id in refinery_ids:
             try:
-                self._update_or_create_refinery_from_esi(id)
+                self._update_or_create_refinery_from_esi(refinery_id)
             except HTTPError as exc:
                 exc_name = type(exc).__name__
-                msg = f"{self}: Failed to fetch refinery with ID {id} from ESI"
+                msg = f"{self}: Failed to fetch refinery with ID {refinery_id} from ESI"
                 message_id = (
-                    f"{__title__}-update_refineries_from_esi-" f"{id}-{exc_name}"
+                    f"{__title__}-update_refineries_from_esi-"
+                    f"{refinery_id}-{exc_name}"
                 )
                 notify_admins_throttled(
                     message_id=message_id,

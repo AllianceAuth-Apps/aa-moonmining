@@ -11,8 +11,7 @@ from app_utils.testing import NoSocketsTestCase
 from moonmining.models import Moon
 from moonmining.tests.testdata.factories import MoonAsteroidsTypeFactory
 
-MODELS_PATH = "moonmining.models.owners"
-PACKAGE_PATH = "moonmining.management.commands"
+MODULE_PATH = "moonmining.management.commands.moonmining_import_moons"
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
@@ -25,7 +24,7 @@ class TestImportMoons(NoSocketsTestCase):
     def setUp(self) -> None:
         self.out = StringIO()
 
-    @patch(PACKAGE_PATH + ".moonmining_import_moons.is_esi_online", new=lambda: True)
+    @patch(MODULE_PATH + ".is_esi_online", new=lambda: True)
     def test_should_create_moons(self):
         # given
         EveMoonFactory(id=40161708)
@@ -59,7 +58,7 @@ class TestImportMoons(NoSocketsTestCase):
         self.assertEqual(m2.products.get(ore_type_id=46676).amount, 0.21)
         self.assertEqual(m2.products.get(ore_type_id=46678).amount, 0.29)
 
-    @patch(PACKAGE_PATH + ".moonmining_import_moons.is_esi_online", new=lambda: True)
+    @patch(MODULE_PATH + ".is_esi_online", new=lambda: True)
     def test_should_abort_when_input_file_not_found(self):
         # given
         import_file = Path(__file__).parent / "testdata" / "unknown_file.xyz"
@@ -68,7 +67,7 @@ class TestImportMoons(NoSocketsTestCase):
         with self.assertRaises(CommandError):
             call_command("moonmining_import_moons", str(import_file), stdout=self.out)
 
-    @patch(PACKAGE_PATH + ".moonmining_import_moons.is_esi_online", new=lambda: False)
+    @patch(MODULE_PATH + ".is_esi_online", new=lambda: False)
     def test_should_abort_when_esi_is_offline(self):
         # when/then
         with self.assertRaises(CommandError):
