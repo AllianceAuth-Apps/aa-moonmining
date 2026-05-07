@@ -7,19 +7,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [3.0.0] - TBD
+## [3.0.0a1] - 2026-05-07
 
 ### Changed
 
-- Breaking change: Removed support for Python 3.8 & 3.9
+- BREAKING CHANGE: Removed support for Python 3.8
+- BREAKING CHANGE: Removed support for Python 3.9
 - Added support for AA 5
 - Migrated ESI client to OpenAPI
+- Improved moon import command
 - Removed logger tag
 - Modernized test suite
 
 ### Fixed
 
 - Extractions not detected as canceled when refinery has no other extractions
+- Bootstrap template compatibility issue on moons page
 
 ## [2.3.0] - 2025-11-14
 

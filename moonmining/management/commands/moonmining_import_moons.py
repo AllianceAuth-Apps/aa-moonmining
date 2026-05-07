@@ -1,21 +1,16 @@
 import csv
+from collections import defaultdict
 from pathlib import Path
-
-from bravado.exception import HTTPBadGateway, HTTPGatewayTimeout, HTTPServiceUnavailable
+from typing import Dict, List
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import IntegrityError, transaction
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveMoon
 
 from allianceauth.services.hooks import get_extension_logger
 
-from moonmining import tasks
+from moonmining.core import CalculatedMoonProduct
 from moonmining.models import EveOreType, Moon, MoonProduct
-
-MAX_RETRIES = 3
-BULK_BATCH_SIZE = 500
-
 
 logger = get_extension_logger(__name__)
 
@@ -26,25 +21,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("input_file", help="Path of CSV file to be imported")
         parser.add_argument(
-            "--force-refetch",
+            "--overwrite-existing",
             action="store_const",
             const=True,
             default=False,
-            help="When set all needed eveuniverse objects will be fetched again from ESI",
-        )
-        parser.add_argument(
-            "--force-update",
-            action="store_const",
-            const=True,
-            default=False,
-            help="When set all Moon and MoonProduct objects will be updated from the input file",
-        )
-        parser.add_argument(
-            "--force-calc",
-            action="store_const",
-            const=True,
-            default=False,
-            help="When set will always re-calculate income",
+            help="When set will overwrite existing moon surveys",
         )
         parser.add_argument(
             "--disable-esi-check",
@@ -63,151 +44,93 @@ class Command(BaseCommand):
             raise CommandError(
                 f"Could not find a file with the path: {input_file.resolve()}"
             )
-        moons, ore_types = self.read_moons(input_file)
-        self.fetch_missing_eve_objects(
-            EveModel=EveMoon,
-            ids_incoming=set(moons.keys()),
-            force_refetch=options["force_refetch"],
-        )
-        self.fetch_missing_eve_objects(
-            EveModel=EveOreType,
-            ids_incoming=ore_types,
-            force_refetch=options["force_refetch"],
-        )
-        self.import_moons(moons, options["force_update"])
-        self.update_moons(moons)
-        self.stdout.write(
-            self.style.SUCCESS(
-                "Import completed. Recalculation of imported moons started."
-            )
-        )
 
-    def read_moons(self, input_file) -> tuple:
+        moons = self.read_moons(input_file)
+        total = len(moons.keys())
+        self.stdout.write(f"Read {total:,} moons from file.")
+        if not options["overwrite_existing"]:
+            found = self.remove_existing_moons(moons)
+            if found > 0:
+                self.stdout.write(
+                    f"Skipping update of {found:,} moons with existing surveys."
+                )
+
+        total_2 = len(moons.keys())
+        self.stdout.write(f"Starting update of {total_2:,} moons.")
+
+        try:
+            self.update_moons(moons)
+        except KeyboardInterrupt:
+            self.stdout.write(self.style.WARNING("Aborted"))
+
+        self.stdout.write(self.style.SUCCESS("DONE"))
+
+    def read_moons(self, input_file: Path) -> Dict[int, List[CalculatedMoonProduct]]:
         self.stdout.write(f"Importing moons from: {input_file} ...")
-        moons = {}
-        ore_types = set()
+        moons: Dict[int, List[CalculatedMoonProduct]] = defaultdict(list)
         with input_file.open("r", encoding="utf-8") as fp:
             csv_reader = csv.DictReader(fp)
             for row in csv_reader:
-                moon_id = int(row["moon_id"])
-                ore_type_id = int(row["ore_type_id"])
-                amount = float(row["amount"])
-                if moon_id not in moons:
-                    moons[moon_id] = []
-                moons[moon_id].append((ore_type_id, amount))
-                ore_types.add(ore_type_id)
+                try:
+                    moon_id = int(row["moon_id"])
+                    ore_type_id = int(row["ore_type_id"])
+                    amount = float(row["amount"])
+                except KeyError:
+                    continue
+
+                product = CalculatedMoonProduct(
+                    ore_type_id=ore_type_id,
+                    amount=amount,
+                )
+                moons[moon_id].append(product)
 
         if not len(moons.keys()):
-            raise CommandError("Import file contains no moons.")
+            raise CommandError("Could not find any moons in the input file.")
 
-        self.stdout.write(
-            f"Input file contains {len(moons.keys())} moons.",
+        return moons
+
+    def remove_existing_moons(
+        self, moons: Dict[int, List[CalculatedMoonProduct]]
+    ) -> int:
+        existing = set(
+            Moon.objects.filter(products__isnull=False).values_list(
+                "eve_moon__id", flat=True
+            )
         )
-        return moons, ore_types
+        overlapping = existing.intersection(moons.keys())
+        removed = 0
+        for moon_id in overlapping:
+            del moons[moon_id]
+            removed += 1
 
-    def fetch_missing_eve_objects(
-        self, EveModel: type, ids_incoming: set, force_refetch: bool
-    ):
-        if force_refetch:
-            ids_to_fetch = set(ids_incoming)
-        else:
-            ids_existing = set(EveModel.objects.values_list("id", flat=True))
-            ids_to_fetch = set(ids_incoming) - ids_existing
-        if not len(ids_to_fetch):
-            logger.debug("No %s objects to fetch from ESI", EveModel.__name__)
-            return
-        self.stdout.write(
-            f"Fetching {len(ids_to_fetch):,} {EveModel.__name__} objects from ESI",
-            ending="",
-        )
-        for id in ids_to_fetch:
-            self._fetch_eve_object(EveModel, id)
-        self.stdout.write("")
-        ids_existing = set(EveModel.objects.values_list("id", flat=True))
-        ids_missing = ids_to_fetch - ids_existing
-        if ids_missing:
-            logger.debug(
-                "%s: Missing %d ids: %s",
-                EveModel.__name__,
-                len(ids_missing),
-                ids_missing,
-            )
-            raise CommandError(
-                f"Failed to fetch all {EveModel.__name__} objects. Please try again"
-            )
+        return removed
 
-    def _fetch_eve_object(self, EveModel: type, id: int):
-        for run in range(MAX_RETRIES + 1):
-            try:
-                with transaction.atomic():
-                    logger.info(
-                        "Fetching %s object with id %s from ESI... %s",
-                        EveModel.__name__,
-                        id,
-                        f"(retry #{run + 1})" if run > 0 else "",
-                    )
-                    EveModel.objects.update_or_create_esi(id=id)
-            except (
-                HTTPBadGateway,
-                HTTPGatewayTimeout,
-                HTTPServiceUnavailable,
-                IntegrityError,
-            ) as ex:
-                logger.exception("Recoverable error occurred: %s", ex)
-            else:
-                self.stdout.write(".", ending="")
-                break
+    def update_moons(self, moons: Dict[int, List[CalculatedMoonProduct]]):
+        amount = len(moons)
+        completed = 0
+        for eve_moon_id, products in moons.items():
+            created_ores = []
+            for p in products:
+                _, created = EveOreType.objects.get_or_create_esi(id=p.ore_type_id)
+                created_ores.append(created)
+            if any(created_ores):
+                EveOreType.objects.update_current_prices()
 
-    @transaction.atomic()
-    def import_moons(self, moons, force_update):
-        ids_incoming = set(moons.keys())
-        ids_existing = set(Moon.objects.values_list("pk", flat=True))
-        ids_missing = ids_incoming - ids_existing
-        new_moons = {
-            moon_id: moon for moon_id, moon in moons.items() if moon_id in ids_missing
-        }
-        if not len(new_moons):
-            logger.debug("No Moon objects to create")
-            if not force_update:
-                self.stdout.write("Moons already exist in DB. Aborting.")
-                return
-        else:
-            self.stdout.write(
-                f"Creating {len(new_moons):,} moons...",
-            )
-            moon_objects = [Moon(eve_moon_id=moon_id) for moon_id in new_moons.keys()]
-            Moon.objects.bulk_create(moon_objects, batch_size=BULK_BATCH_SIZE)
-        if force_update:
-            ids_to_update = ids_incoming - ids_missing
-            self.stdout.write(
-                f"Updating {len(ids_to_update):,} moons...",
-            )
-            Moon.objects.filter(pk__in=ids_to_update).update(
-                products_updated_at=None, products_updated_by=None
-            )
-            MoonProduct.objects.filter(moon__pk__in=moons.keys()).delete()
-            product_moons = moons
-        else:
-            product_moons = new_moons
+            eve_moon, _ = EveMoon.objects.get_or_create_esi(id=eve_moon_id)
+            moon, _ = Moon.objects.get_or_create(eve_moon=eve_moon)
 
-        # create moon products
-        if len(product_moons):
-            self.stdout.write(
-                f"Writing approx. {len(product_moons) * 3.5:,.0f} moon products..."
-            )
             product_objects = []
-            for moon_id, moon_data in product_moons.items():
-                for ore in moon_data:
-                    product_objects.append(
-                        MoonProduct(moon_id=moon_id, ore_type_id=ore[0], amount=ore[1])
+            for p in products:
+                product_objects.append(
+                    MoonProduct(
+                        moon_id=moon.id, ore_type_id=p.ore_type_id, amount=p.amount
                     )
-            MoonProduct.objects.bulk_create(product_objects, batch_size=BULK_BATCH_SIZE)
+                )
+            moon.update_products(product_objects)
 
-    def update_moons(self, moons):
-        moons_to_update_qs = Moon.objects.filter(pk__in=moons.keys())
-        for moon in moons_to_update_qs:
-            tasks.update_moon_calculated_properties.delay(moon.pk)
-        self.stdout.write(
-            f"Updating calculated properties for {moons_to_update_qs.count():,} "
-            "moons started..."
-        )
+            completed += 1
+            progress = round(completed / amount * 100, 1)
+            self.stdout.write(f"Updated: {str(moon):30} [Progress: {progress}%]")
+            logger.info(
+                "Added survey for moon ID %d with import command", moon.eve_moon.id
+            )
