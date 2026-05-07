@@ -100,7 +100,11 @@ class CalculatedExtractionProduct:
     @classmethod
     def create_list_from_dict(cls, ores: dict) -> List["CalculatedExtractionProduct"]:
         """Return list of newly created objs from a dict."""
-        return [cls(ore_type_id, volume) for ore_type_id, volume in ores.items()]
+        lst = sorted(
+            [cls(ore_type_id, volume) for ore_type_id, volume in ores.items()],
+            key=lambda o: o.ore_type_id,
+        )
+        return lst
 
 
 @dataclass

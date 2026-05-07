@@ -120,6 +120,11 @@ class Moon(models.Model):
         """Return name of this moon."""
         return self.eve_moon.name.replace("Moon ", "")
 
+    @property
+    def id(self) -> int:
+        """Return id of this moon."""
+        return self.eve_moon.id
+
     def region(self) -> EveRegion:
         """Return region."""
         return self.solar_system().eve_constellation.eve_region

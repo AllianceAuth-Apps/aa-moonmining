@@ -1,24 +1,21 @@
 import datetime as dt
-
-import pytz
+from http import HTTPStatus
 
 from django.test import RequestFactory, TestCase
 from django.utils.timezone import now
-from eveuniverse.models import EveMarketPrice, EveMoon
+from eveuniverse.tests.testdata.factories_2 import EveEntityCharacterFactory
 
-from app_utils.testing import create_user_from_evecharacter, json_response_to_dict
+from app_utils.testdata_factories import UserMainFactory
+from app_utils.testing import json_response_to_dict
 
 import moonmining.views.extractions
 from moonmining.models import Extraction, Owner
-from moonmining.tests import helpers
 from moonmining.tests.testdata.factories import (
     ExtractionFactory,
     MiningLedgerRecordFactory,
-    MoonFactory,
+    OwnerFactory,
     RefineryFactory,
 )
-from moonmining.tests.testdata.load_allianceauth import load_allianceauth
-from moonmining.tests.testdata.load_eveuniverse import load_eveuniverse
 
 
 class TestExtractionsData(TestCase):
@@ -26,39 +23,28 @@ class TestExtractionsData(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.factory = RequestFactory()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-        moon = MoonFactory(eve_moon=EveMoon.objects.get(id=40161708))
-        cls.refinery = RefineryFactory(moon=moon)
+        cls.owner = OwnerFactory()
+        cls.refinery = RefineryFactory(owner=cls.owner)
+        cls.started_by = EveEntityCharacterFactory()
         cls.extraction = ExtractionFactory(
             refinery=cls.refinery,
-            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=pytz.UTC),
-            started_by_id=1001,
+            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
+            started_by_id=cls.started_by.id,
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.COMPLETED,
         )
-        EveMarketPrice.objects.create(eve_type_id=45506, average_price=10)
-        cls.user_1003, _ = create_user_from_evecharacter(1003)
 
-    def test_should_show_extraction(self):
+    def test_should_show_extraction_and_ledger_button(self):
         # given
-        MiningLedgerRecordFactory(
-            refinery=self.refinery,
-            character_id=1001,
-            day=dt.date(2019, 11, 20),
-            corporation_id=2001,
-            user=self.user_1003,
-        )
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=[
+        MiningLedgerRecordFactory(refinery=self.refinery, day=dt.date(2019, 11, 20))
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=[
                 "moonmining.basic_access",
                 "moonmining.extractions_access",
                 "moonmining.view_moon_ledgers",
             ],
-            scopes=Owner.esi_scopes(),
         )
         request = self.factory.get("/")
         request.user = user
@@ -69,20 +55,21 @@ class TestExtractionsData(TestCase):
         )
 
         # then
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json_response_to_dict(response)
         self.assertSetEqual(set(data.keys()), {self.extraction.pk})
         obj = data[self.extraction.pk]
         self.assertIn("2019-Nov-20 00:01", obj["chunk_arrival_at"]["display"])
-        self.assertEqual(obj["corporation_name"], "Wayne Technologies [WYN]")
+        self.assertIn(self.owner.corporation.corporation_name, obj["corporation_name"])
         self.assertIn("modalExtractionLedger", obj["details"])
 
-    def test_should_not_show_extraction(self):
+    def test_should_not_show_extraction_when_user_has_no_permission(self):
         # given
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=["moonmining.basic_access"],
-            scopes=Owner.esi_scopes(),
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=[
+                "moonmining.basic_access",
+            ],
         )
         request = self.factory.get("/")
         request.user = user
@@ -91,21 +78,14 @@ class TestExtractionsData(TestCase):
         response = moonmining.views.extractions.extractions_data(
             request, moonmining.views.extractions.ExtractionsCategory.PAST
         )
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
-    def test_should_not_show_ledger_button_wo_permission(self):
+    def test_should_show_extraction_and_no_ledger_button_wo_specific_permission(self):
         # given
-        MiningLedgerRecordFactory(
-            refinery=self.refinery,
-            character_id=1001,
-            day=dt.date(2019, 11, 20),
-            corporation_id=2001,
-            user=self.user_1003,
-        )
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=["moonmining.basic_access", "moonmining.extractions_access"],
-            scopes=Owner.esi_scopes(),
+        MiningLedgerRecordFactory(refinery=self.refinery, day=dt.date(2019, 11, 20))
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=["moonmining.basic_access", "moonmining.extractions_access"],
         )
         request = self.factory.get("/")
         request.user = user
@@ -116,21 +96,20 @@ class TestExtractionsData(TestCase):
         )
 
         # then
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json_response_to_dict(response)
         obj = data[self.extraction.pk]
         self.assertNotIn("modalExtractionLedger", obj["details"])
 
     def test_should_not_show_ledger_button_when_no_data(self):
         # given
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=[
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=[
                 "moonmining.basic_access",
                 "moonmining.extractions_access",
                 "moonmining.view_moon_ledgers",
             ],
-            scopes=Owner.esi_scopes(),
         )
         request = self.factory.get("/")
         request.user = user
@@ -141,45 +120,33 @@ class TestExtractionsData(TestCase):
         )
 
         # then
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json_response_to_dict(response)
         obj = data[self.extraction.pk]
         self.assertNotIn("modalExtractionLedger", obj["details"])
 
     def test_ignore_refineries_without_moons(self):
         # given
-        MiningLedgerRecordFactory(
-            refinery=self.refinery,
-            character_id=1001,
-            day=dt.date(2019, 11, 20),
-            corporation_id=2001,
-            user=self.user_1003,
-        )
+        MiningLedgerRecordFactory(refinery=self.refinery, day=dt.date(2019, 11, 20))
         refinery_2 = RefineryFactory(moon=None, owner=self.refinery.owner)
         ExtractionFactory(
             refinery=refinery_2,
-            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=pytz.UTC),
-            started_by_id=1001,
+            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
+            started_by_id=self.started_by.id,
             started_at=now() - dt.timedelta(days=3),
             status=Extraction.Status.COMPLETED,
         )
-        MiningLedgerRecordFactory(
-            refinery=refinery_2,
-            character_id=1001,
-            day=dt.date(2019, 11, 20),
-            corporation_id=2001,
-            user=self.user_1003,
-        )
-        user, _ = create_user_from_evecharacter(
-            1002,
-            permissions=[
+        MiningLedgerRecordFactory(refinery=refinery_2, day=dt.date(2019, 11, 20))
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=[
                 "moonmining.basic_access",
                 "moonmining.extractions_access",
                 "moonmining.view_moon_ledgers",
             ],
-            scopes=Owner.esi_scopes(),
         )
+
         request = self.factory.get("/")
         request.user = user
 
@@ -189,7 +156,7 @@ class TestExtractionsData(TestCase):
         )
 
         # then
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json_response_to_dict(response)
         self.assertSetEqual(set(data.keys()), {self.extraction.pk})
 
@@ -198,72 +165,54 @@ class TestExtractionLedgerData(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        load_eveuniverse()
-        load_allianceauth()
-        helpers.generate_eve_entities_from_allianceauth()
-        moon = MoonFactory(eve_moon=EveMoon.objects.get(id=40161708))
-        cls.refinery = RefineryFactory(moon=moon)
+        cls.factory = RequestFactory()
+        cls.owner = OwnerFactory()
+        cls.refinery = RefineryFactory(owner=cls.owner)
+        cls.started_by = EveEntityCharacterFactory()
         cls.extraction = ExtractionFactory(
             refinery=cls.refinery,
-            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=pytz.UTC),
-            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=pytz.UTC),
-            started_by_id=1001,
+            chunk_arrival_at=dt.datetime(2019, 11, 20, 0, 1, 0, tzinfo=dt.timezone.utc),
+            auto_fracture_at=dt.datetime(2019, 11, 20, 3, 1, 0, tzinfo=dt.timezone.utc),
+            started_by_id=cls.started_by.id,
             started_at=now() - dt.timedelta(days=3),
-            status=Extraction.Status.STARTED,
+            status=Extraction.Status.COMPLETED,
         )
-        user_1003, _ = create_user_from_evecharacter(
-            1003,
-            permissions=[
-                "moonmining.basic_access",
-                "moonmining.extractions_access",
-                "moonmining.view_moon_ledgers",
-            ],
-            scopes=Owner.esi_scopes(),
-        )
-        EveMarketPrice.objects.create(eve_type_id=45506, average_price=10)
-        MiningLedgerRecordFactory(
-            refinery=cls.refinery,
-            character_id=1001,
-            day=dt.date(2021, 4, 18),
-            ore_type_id=45506,
-            corporation_id=2001,
-            quantity=100,
-            user=user_1003,
-        )
+        MiningLedgerRecordFactory(refinery=cls.refinery, day=dt.date(2021, 4, 18))
 
-    def test_should_show_ledger(self):
+    def test_should_show_ledger_when_user_has_permission(self):
         # given
-        user_1002, _ = create_user_from_evecharacter(
-            1002,
-            permissions=[
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=[
                 "moonmining.basic_access",
                 "moonmining.extractions_access",
                 "moonmining.view_moon_ledgers",
             ],
-            scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user_1002)
+        self.client.force_login(user)
+
         # when
         response = self.client.get(
             f"/moonmining/extraction_ledger/{self.extraction.pk}",
         )
         # then
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertTemplateUsed(response, "moonmining/modals/extraction_ledger.html")
 
-    def test_should_not_show_ledger(self):
+    def test_should_not_show_ledger_when_user_has_no_permission(self):
         # given
-        user_1002, _ = create_user_from_evecharacter(
-            1002,
-            permissions=[
+        user = UserMainFactory(
+            main_character__scopes=Owner.esi_scopes(),
+            permissions__=[
                 "moonmining.basic_access",
                 "moonmining.extractions_access",
             ],
-            scopes=Owner.esi_scopes(),
         )
-        self.client.force_login(user_1002)
+        self.client.force_login(user)
+
         # when
         response = self.client.get(
             f"/moonmining/extraction_ledger/{self.extraction.pk}",
         )
         # then
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
