@@ -123,7 +123,7 @@ def extractions_data(request: HttpRequest, category: str):
         status_html = format_html(
             "{}<br>{}",
             extraction.chunk_arrival_at.strftime(DATETIME_FORMAT),
-            extraction.status_enum.bootstrap_tag_html,
+            extraction.status_2.bootstrap_tag_html,
         )
         data.append(
             {

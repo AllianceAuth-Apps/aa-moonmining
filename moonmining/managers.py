@@ -17,9 +17,7 @@ from eveuniverse.models import EveMoon
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
-from app_utils.logging import LoggerAddTag
 
-from . import __title__
 from .app_settings import (
     MOONMINING_REPROCESSING_YIELD,
     MOONMINING_USE_REPROCESS_PRICING,
@@ -30,7 +28,7 @@ from .helpers import eve_entity_get_or_create_esi_safe
 
 MAX_THREAD_WORKERS = 20
 BULK_BATCH_SIZE = 500
-logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+logger = get_extension_logger(__name__)
 
 SurveyProcessResult = namedtuple(
     "SurveyProcessResult", ["moon_name", "success", "error_name"]
@@ -50,11 +48,12 @@ class EveOreTypeManger(EveTypeManager):
 
     def update_current_prices(self, use_process_pricing: Optional[bool] = None):
         """Update current prices for all ores."""
-        from .models import EveOreTypeExtras
+        from .models import EveOreType, EveOreTypeExtras
 
         if use_process_pricing is None:
             use_process_pricing = MOONMINING_USE_REPROCESS_PRICING
 
+        obj: EveOreType
         for obj in self.filter(published=True).select_related("market_price"):
             if use_process_pricing:
                 price = obj.calc_refined_value_per_unit(MOONMINING_REPROCESSING_YIELD)
@@ -413,9 +412,3 @@ class ExtractionManagerBase(models.Manager):
 
 
 ExtractionManager = ExtractionManagerBase.from_queryset(ExtractionQuerySet)
-
-
-class RefineryManager(models.Manager):
-    def ids(self) -> set:
-        """Return IDs of this queryset."""
-        return set(self.values_list("id", flat=True))

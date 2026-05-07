@@ -1,3 +1,6 @@
+-include .env
+export
+
 appname = aa-moonmining
 package = moonmining
 
@@ -41,14 +44,11 @@ compilemessages:
 		-l zh_Hans
 
 coverage:
-	# coverage run ../myauth/manage.py test $(package) --keepdb --failfast && coverage html && coverage report -m
-	coverage run --concurrency=multiprocessing ../myauth/manage.py test --keepdb --failfast --timing --parallel --exclude-tag=exclude-parallel && coverage combine && coverage html && coverage report -m
+	# coverage run $(MANAGE_PY_PATH) test $(package) --keepdb --failfast && coverage html && coverage report -m
+	coverage run --concurrency=multiprocessing $(MANAGE_PY_PATH) test --keepdb --failfast --timing --parallel --exclude-tag=exclude-parallel && coverage combine && coverage html && coverage report -m
 
 pylint:
 	pylint --load-plugins pylint_django $(package)
 
 graph_models:
-	python ../myauth/manage.py graph_models $(package) --arrow-shape normal -o $(appname)_models.png
-
-create_testdata:
-	python ../myauth/manage.py test $(package).tests.testdata.create_eveuniverse --keepdb -v 2
+	python $(MANAGE_PY_PATH) graph_models $(package) --arrow-shape normal -o $(appname)_models.png

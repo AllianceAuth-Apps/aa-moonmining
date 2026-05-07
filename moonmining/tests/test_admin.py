@@ -1,21 +1,19 @@
+from http import HTTPStatus
+
 from django.test import TestCase
 
 from app_utils.testdata_factories import UserFactory
 
-from .testdata.load_eveuniverse import load_eveuniverse
+from moonmining.tests.testdata.factories import EveOreTypeFactory
 
 
 class TestAdminUI(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        load_eveuniverse()
-
     def test_should_open_prices_page(self):
-        # def
+        # given
+        EveOreTypeFactory()
         user = UserFactory(is_superuser=True, is_staff=True)
         self.client.force_login(user)
         # when
         response = self.client.get("/admin/moonmining/eveoretype/")
         # then
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)

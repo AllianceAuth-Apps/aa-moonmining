@@ -213,7 +213,7 @@ class Extraction(models.Model):
         return self.duration.total_seconds() / (60 * 60 * 24)
 
     @property
-    def status_enum(self) -> "Extraction.Status":
+    def status_2(self) -> "Extraction.Status":
         """Return current status as enum type."""
         return self.Status(self.status)
 

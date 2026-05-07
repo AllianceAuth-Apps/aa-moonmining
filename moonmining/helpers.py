@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import List
 
 from django.utils.html import format_html
+from esi.exceptions import HTTPError
 from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import User
@@ -29,7 +30,7 @@ def eve_entity_get_or_create_esi_safe(id):
         try:
             entity, _ = EveEntity.objects.get_or_create_esi(id=id)
             return entity
-        except OSError:
+        except HTTPError:
             pass
     return None
 

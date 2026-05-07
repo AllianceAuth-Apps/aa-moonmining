@@ -2,14 +2,12 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from app_utils.logging import LoggerAddTag
-
-from moonmining import __title__, tasks
+from moonmining import tasks
 from moonmining.models import Extraction, Moon
 
 from . import get_input
 
-logger = LoggerAddTag(logging.getLogger(__name__), __title__)
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
