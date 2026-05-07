@@ -14,6 +14,7 @@ from eveuniverse.tests.testdata.factories_2 import (
     EveEntityCharacterFactory,
     EveEntityCorporationFactory,
     EveMoonFactory,
+    MoonTypeFactory,
 )
 
 from app_utils.testing import NoSocketsTestCase, queryset_pks
@@ -36,7 +37,6 @@ from moonmining.tests.testdata.factories import (
     MoonAsteroidsTypeFactory,
     MoonFactory,
     MoonNotificationFactory,
-    MoonTypeFactory,
     OwnerFactory,
     PositionFactory,
     RefineryFactory,

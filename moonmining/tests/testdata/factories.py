@@ -85,19 +85,6 @@ class EveEntityCorporationDEDFactory(EveEntityCorporationFactory):
     name = "DED"
 
 
-# TODO: Replace with eveuniverse version
-class MoonTypeFactory(EveTypeFactory):
-    eve_group = factory.SubFactory(
-        EveGroupFactory,
-        eve_category__id=EveCategoryId.CELESTIAL,
-        eve_category__name="Celestial",
-        id=EveGroupId.MOON,
-        name="Moon",
-    )
-    id = 14
-    name = "Moon"
-
-
 class MoonAsteroidsTypeFactory(EveTypeFactory):
     eve_group = factory.SubFactory(
         EveGroupFactory,
