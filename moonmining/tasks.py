@@ -47,25 +47,25 @@ def update_owner(owner_pk: int):
     ).delay()
 
 
-@shared_task(base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+@shared_task(base=QueueOnce, bind=True, once={"keys": ["owner_pk"], "graceful": True})
 @rate_limit_retry_task
-def update_refineries_from_esi_for_owner(owner_pk: int):
+def update_refineries_from_esi_for_owner(_self, owner_pk: int):
     """Update refineries for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
     owner.update_refineries_from_esi()
 
 
-@shared_task(base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+@shared_task(base=QueueOnce, bind=True, once={"keys": ["owner_pk"], "graceful": True})
 @rate_limit_retry_task
-def fetch_notifications_from_esi_for_owner(owner_pk: int):
+def fetch_notifications_from_esi_for_owner(_self, owner_pk: int):
     """Update extractions for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
     owner.fetch_notifications_from_esi()
 
 
-@shared_task(base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+@shared_task(base=QueueOnce, bind=True, once={"keys": ["owner_pk"], "graceful": True})
 @rate_limit_retry_task
-def update_extractions_for_owner(owner_pk: int):
+def update_extractions_for_owner(_self, owner_pk: int):
     """Update extractions for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
     owner.update_extractions()
@@ -89,9 +89,9 @@ def run_report_updates():
         update_mining_ledger_for_owner.delay(owner_pk)
 
 
-@shared_task(base=QueueOnce, once={"keys": ["owner_pk"], "graceful": True})
+@shared_task(base=QueueOnce, bind=True, once={"keys": ["owner_pk"], "graceful": True})
 @rate_limit_retry_task
-def update_mining_ledger_for_owner(owner_pk: int):
+def update_mining_ledger_for_owner(_self, owner_pk: int):
     """Update mining ledger for a owner from ESI."""
     owner = Owner.objects.get(pk=owner_pk)
     observer_ids = owner.fetch_mining_ledger_observers_from_esi()
@@ -104,9 +104,11 @@ def update_mining_ledger_for_owner(owner_pk: int):
         )
 
 
-@shared_task(base=QueueOnce, once={"keys": ["refinery_id"], "graceful": True})
+@shared_task(
+    base=QueueOnce, bind=True, once={"keys": ["refinery_id"], "graceful": True}
+)
 @rate_limit_retry_task
-def update_mining_ledger_for_refinery(refinery_id: int):
+def update_mining_ledger_for_refinery(_self, refinery_id: int):
     """Update mining ledger for a refinery from ESI."""
     refinery = Refinery.objects.get(id=refinery_id)
     refinery.update_mining_ledger_from_esi()
@@ -124,9 +126,9 @@ def run_calculated_properties_update():
     ).delay()
 
 
-@shared_task(base=QueueOnce)
+@shared_task(base=QueueOnce, bind=True)
 @rate_limit_retry_task
-def update_market_prices():
+def update_market_prices(_self):
     """Update all market prices."""
     EveMarketPrice.objects.update_from_esi()
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [3.0.1] - 2026-06-04
+
+### Changed
+
+- Updated ESI spec to latest with same compatibility date
+
+### Fixed
+
+- Existing moon surveys not shown
+- Rate limit decorator not working as expected
+- Progress bar value sloppy formatting
+
 ## [3.0.0] - 2026-05-21
 
 This is a major update which adds support for Alliance Auth V5.
