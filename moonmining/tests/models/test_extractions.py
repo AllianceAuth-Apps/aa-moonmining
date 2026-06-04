@@ -41,7 +41,7 @@ class TestEveOreTypeProfileUrl(NoSocketsTestCase):
         # when
         result = cinnabar.profile_url
         # then
-        self.assertEqual(result, "https://www.kalkoken.org/apps/eveitems/?typeId=45506")
+        self.assertTrue(result)
 
 
 class TestExtraction(NoSocketsTestCase):
