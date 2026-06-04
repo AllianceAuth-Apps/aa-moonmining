@@ -15,21 +15,9 @@
                 &nbsp;{{ product.ore_type.extras.current_price|floatformat:"0"|intcomma|default:"?" }}
                 <small class="text-muted">{% translate 'ISK per unit' %}</small>
             </p>
-            <div class="progress" style="height: 20px; width: 100%">
-                <div
-                    class="progress-bar progress-bar-default progress-bar-striped"
-                    role="progressbar"
-                    aria-valuenow="{{ product.amount_percent }}"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    style="width: {{ product.amount_percent }}%; line-height: 20px;"
-                >
-                    <span class="sr-only">
-                        {{ product.amount_percent|floatformat:"0" }}% {{ product.ore_type.name }}
-                    </span>
-                    <h5 class="media-heading" style="padding-top: 2px">
+            <div class="progress" role="progressbar" aria-valuenow="{{ product.amount_percent }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar progress-bar-default progress-bar-striped" style="width: {{ product.amount_percent }}%">
                         {{ product.amount_percent|floatformat:"0" }}%
-                    </h5>
                 </div>
             </div>
         </div>
