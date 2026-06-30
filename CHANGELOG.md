@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [3.0.2] - 2026-06-30
+
+### Fixed
+
+- EveCorporationInfo.objects.create_corporation() has breaking API change AA 5.1
+
 ## [3.0.1] - 2026-06-04
 
 ### Changed
