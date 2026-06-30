@@ -113,9 +113,7 @@ print(f"Generating {MAX_REFINERIES} refineries...")
 try:
     corporation = EveCorporationInfo.objects.get(corporation_id=DUMMY_CORPORATION_ID)
 except EveCorporationInfo.DoesNotExist:
-    corporation = EveCorporationInfo.objects.create_corporation(
-        corp_id=DUMMY_CORPORATION_ID
-    )
+    corporation = EveCorporationInfo.objects.create_corporation(DUMMY_CORPORATION_ID)
 owner, _ = Owner.objects.get_or_create(corporation=corporation)
 Refinery.objects.filter(owner=owner).delete()
 eve_type, _ = EveType.objects.get_or_create_esi(id=35835)
