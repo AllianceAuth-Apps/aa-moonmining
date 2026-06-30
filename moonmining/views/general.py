@@ -42,7 +42,7 @@ def add_owner(request, token):
         )
     except EveCorporationInfo.DoesNotExist:
         corporation = EveCorporationInfo.objects.create_corporation(
-            corp_id=character_ownership.character.corporation_id
+            character_ownership.character.corporation_id
         )
         corporation.save()
 
