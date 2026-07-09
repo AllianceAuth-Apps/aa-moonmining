@@ -5,9 +5,9 @@ An Alliance Auth app for tracking moon extractions and scouting new moons.
 [![release](https://img.shields.io/pypi/v/aa-moonmining?label=release)](https://pypi.org/project/aa-moonmining/)
 [![python](https://img.shields.io/pypi/pyversions/aa-moonmining)](https://pypi.org/project/aa-moonmining/)
 [![django](https://img.shields.io/pypi/djversions/aa-moonmining?label=django)](https://pypi.org/project/aa-moonmining/)
-[![pipeline](https://gitlab.com/ErikKalkoken/aa-moonmining/badges/master/pipeline.svg)](https://gitlab.com/ErikKalkoken/aa-moonmining/-/pipelines)
-[![codecov](https://codecov.io/gl/ErikKalkoken/aa-moonmining/branch/master/graph/badge.svg?token=3tY1AOIp4B)](https://codecov.io/gl/ErikKalkoken/aa-moonmining)
-[![license](https://img.shields.io/badge/license-MIT-green)](https://gitlab.com/ErikKalkoken/aa-moonmining/-/blob/master/LICENSE)
+[![CI/CD Pipeline](https://github.com/AllianceAuth-Apps/aa-moonmining/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/AllianceAuth-Apps/aa-moonmining/actions/workflows/ci-cd.yaml)
+[![codecov](https://codecov.io/github/AllianceAuth-Apps/aa-moonmining/graph/badge.svg?token=D7eoz4PH8U)](https://codecov.io/github/AllianceAuth-Apps/aa-moonmining)
+[![license](https://img.shields.io/badge/license-MIT-green)](https://github.com/AllianceAuth-Apps/aa-moonmining#MIT-1-ov-file)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![chat](https://img.shields.io/discord/790364535294132234)](https://discord.gg/zmh52wnfvM)
@@ -202,7 +202,7 @@ Labels are created on the admin site under Label and can then be assigned under 
 
 Here is an overview of all permissions:
 
-Name  | Description
+Name | Description
 -- | --
 `moonmining.basic_access` | This is access permission, users without this permission will be unable to access the plugin.
 `moonmining.upload_moon_scan` | This permission allows users to upload moon scan data.
@@ -220,13 +220,13 @@ Note that all settings are optional and the app will use the documented default 
 
 Name | Description | Default
 -- | -- | --
-`MOONMINING_ADMIN_NOTIFICATIONS_ENABLED`| whether admins will get notifications about important events like when someone adds a structure owner | `True`
-`MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE`| Number of hours an extractions that has passed its ready time is still shown on the upcoming extractions tab. | `12`
-`MOONMINING_REPROCESSING_YIELD`| Reprocessing yield used for calculating all values | `0.85`
-`MOONMINING_USE_REPROCESS_PRICING`|  Whether to calculate prices from it's reprocessed materials or not. Will use direct ore prices when switched off | `False`
-`MOONMINING_VOLUME_PER_DAY`| Maximum ore volume per day used for calculating moon values. | `960400`
-`MOONMINING_DAYS_PER_MONTH`| Average days per months used for calculating moon values. | `30.4`
-`MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES`| Whether uploaded survey are automatically overwritten by product estimates from extractions to keep the moon values current | `False`
+`MOONMINING_ADMIN_NOTIFICATIONS_ENABLED` | whether admins will get notifications about important events like when someone adds a structure owner | `True`
+`MOONMINING_COMPLETED_EXTRACTIONS_HOURS_UNTIL_STALE` | Number of hours an extractions that has passed its ready time is still shown on the upcoming extractions tab. | `12`
+`MOONMINING_REPROCESSING_YIELD` | Reprocessing yield used for calculating all values | `0.85`
+`MOONMINING_USE_REPROCESS_PRICING` | Whether to calculate prices from it's reprocessed materials or not. Will use direct ore prices when switched off | `False`
+`MOONMINING_VOLUME_PER_DAY` | Maximum ore volume per day used for calculating moon values. | `960400`
+`MOONMINING_DAYS_PER_MONTH` | Average days per months used for calculating moon values. | `30.4`
+`MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES` | Whether uploaded survey are automatically overwritten by product estimates from extractions to keep the moon values current | `False`
 
 ## Management Commands
 
@@ -236,10 +236,10 @@ The following management commands are available to perform administrative tasks:
 
 Name | Description
 -- | --
-`moonmining_calculate_all`| Calculate all properties for moons and extractions.
-`moonstuff_export_moons`| Export all moons from aa-moonstuff v1 to a CSV file, which can later be used to import the moons into the Moon Mining app
-`moonmining_load_eve`| Pre-loads data required for this app from ESI to improve app performance.
-`moonmining_import_moons`| Import moons from a CSV file. Example:<br>`moon_id,ore_type_id,amount`<br>`40161708,45506,0.19`
+`moonmining_calculate_all` | Calculate all properties for moons and extractions.
+`moonstuff_export_moons` | Export all moons from aa-moonstuff v1 to a CSV file, which can later be used to import the moons into the Moon Mining app
+`moonmining_load_eve` | Pre-loads data required for this app from ESI to improve app performance.
+`moonmining_import_moons` | Import moons from a CSV file. Example:<br>`moon_id,ore_type_id,amount`<br>`40161708,45506,0.19`
 
 ## FAQ
 
