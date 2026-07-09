@@ -38,10 +38,7 @@ dependencies = [
 test = ["coverage", "factory_boy", "pook"]
 
 [project.urls]
-Homepage = "https://gitlab.com/ErikKalkoken/aa-moonmining"
-Source = "https://gitlab.com/ErikKalkoken/aa-moonmining"
-Changelog = "https://gitlab.com/ErikKalkoken/aa-moonmining/-/blob/master/CHANGELOG.md"
-Tracker = "https://gitlab.com/ErikKalkoken/aa-moonmining/-/issues"
+Homepage = "https://github.com/AllianceAuth-Apps/aa-moonmining"
 
 [tool.flit.module]
 name = "moonmining"
