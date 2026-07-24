@@ -16,10 +16,16 @@ logger = get_extension_logger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Import moons from an CSV file."
+    help = "Import moons from a file in CSV format."
 
     def add_arguments(self, parser):
-        parser.add_argument("input_file", help="Path of CSV file to be imported")
+        parser.add_argument(
+            "path",
+            help=(
+                "Path of the CSV file to be imported. "
+                'e.g.: "moons.csv" or  "/path/to/moons.csv"'
+            ),
+        )
         parser.add_argument(
             "--overwrite-existing",
             action="store_const",
@@ -39,13 +45,11 @@ class Command(BaseCommand):
         if not options["disable_esi_check"] and not is_esi_online():
             raise CommandError("ESI if offline. Aborting")
 
-        input_file = Path(options["input_file"])
-        if not input_file.exists():
-            raise CommandError(
-                f"Could not find a file with the path: {input_file.resolve()}"
-            )
+        path = Path(options["path"])
+        if not path.exists():
+            raise CommandError(f"Could not find a file with the path: {path.resolve()}")
 
-        moons = self.read_moons(input_file)
+        moons = self.read_moons(path)
         total = len(moons.keys())
         self.stdout.write(f"Read {total:,} moons from file.")
         if not options["overwrite_existing"]:
