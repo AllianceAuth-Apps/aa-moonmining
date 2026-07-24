@@ -2,7 +2,6 @@
 
 from django.urls import reverse
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from app_utils.views import BootstrapStyleBS5
@@ -47,7 +46,7 @@ def fontawesome_modal_button_html(
         "</button>",
         BootstrapStyleBS5(style),
         modal_id,
-        mark_safe(f'title="{tooltip}" ') if tooltip else "",
-        mark_safe(f'data-ajax_url="{ajax_url}" ') if ajax_url else "",
+        format_html('title="{}" ', tooltip) if tooltip else "",
+        format_html('data-ajax_url="{}" ', ajax_url) if ajax_url else "",
         fa_code,
     )

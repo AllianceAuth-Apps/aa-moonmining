@@ -1,3 +1,6 @@
+# This file expects an .env file to exist that defines MANAGE_PY_PATH
+# For example MANAGE_PY_PATH=/home/allianceserver/venv/myauth/manage.py
+
 -include .env
 export
 

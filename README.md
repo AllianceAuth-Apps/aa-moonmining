@@ -79,7 +79,7 @@ Check out the reporting section for detail reports on your operation, e.g. Break
 
 1. Moon Mining is a plugin for Alliance Auth. If you don't have Alliance Auth running already, please install it first before proceeding. (see the official [AA installation guide](https://allianceauth.readthedocs.io/en/latest/installation/auth/allianceauth/) for details)
 
-2. Moon Mining needs the app [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse) to function. Please make sure it is installed, before before continuing.
+2. Moon Mining needs the app [django-eveuniverse](https://github.com/AllianceAuth-Apps/django-eveuniverse) to function. Please make sure it is installed, before before continuing.
 
 ### Step 2 - Install app
 
@@ -255,4 +255,4 @@ Name | Description
 
 ## History
 
-This project started as a fork from [aa-moonstuff](https://gitlab.com/colcrunch/aa-moonstuff) in 2019, but as diverged heavily since then through two major iterations. The first iteration was called Moon Planner and used internally. It had a very different data model build upon [allianceauth-evesde](https://gitlab.com/ErikKalkoken/allianceauth-evesde). The current version is the second iteration and is build upon [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse). Nevertheless, we like to take the opportunity to thank @colcrunch for providing a great starting point with moonstuff.
+This project started as a fork from [aa-moonstuff](https://gitlab.com/colcrunch/aa-moonstuff) in 2019, but as diverged heavily since then through two major iterations. The first iteration was called Moon Planner and used internally. It had a very different data model build upon [allianceauth-evesde](https://gitlab.com/ErikKalkoken/allianceauth-evesde). The current version is the second iteration and is build upon [django-eveuniverse](https://github.com/AllianceAuth-Apps/django-eveuniverse). We like to take the opportunity to thank @colcrunch for providing a great starting point with moonstuff.
