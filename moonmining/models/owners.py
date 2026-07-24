@@ -2,6 +2,7 @@
 
 import datetime as dt
 from collections import defaultdict
+from http import HTTPStatus
 from typing import Iterable, List, Optional, Set, Tuple
 
 import yaml
@@ -11,14 +12,14 @@ from django.db import models
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from esi.exceptions import HTTPError
+from esi.exceptions import HTTPClientError, HTTPError
 from esi.models import Token
 from eveuniverse.models import EveEntity, EveMoon, EveSolarSystem, EveType
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
-from app_utils.allianceauth import notify_admins_throttled
+from app_utils.allianceauth import notify_admins, notify_admins_throttled
 from app_utils.views import bootstrap_icon_plus_name_html
 
 from moonmining import __title__
@@ -164,7 +165,26 @@ class Owner(models.Model):
     def update_refineries_from_esi(self):
         """Update all refineries from ESI."""
         logger.info("%s: Updating refineries...", self)
-        refinery_ids = self._fetch_refineries_from_esi()
+        try:
+            refinery_ids = self._fetch_refineries_from_esi()
+        except HTTPClientError as exc:
+            if exc.status_code == HTTPStatus.FORBIDDEN:
+                self.is_enabled = False
+                self.last_update_ok = False
+                self.save()
+                try:
+                    character = str(self.character_ownership.character)
+                except AttributeError:
+                    character = "?"
+                message = (
+                    f"Owner disabled: {self}\n"
+                    f"Sync character is no longer valid: {character}"
+                    f"Response from ESI: {exc}"
+                )
+                title = "Moon Mining: Owner disabled"
+                notify_admins(title=title, message=message)
+            raise exc
+
         for refinery_id in refinery_ids:
             try:
                 self._update_or_create_refinery_from_esi(refinery_id)
