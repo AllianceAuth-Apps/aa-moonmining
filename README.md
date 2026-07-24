@@ -33,7 +33,7 @@ An Alliance Auth app for tracking moon extractions and scouting new moons.
 - Reports (e.g. potential total income of all owned moons)
 - Tool for mass importing moon scans from external sources
 
-> [!HINT]
+> [!TIP]
 > If you like to see all extraction events in a calendar view please consider checking out the amazing app [Allianceauth Opcalendar](https://gitlab.com/paulipa/allianceauth-opcalendar), which is fully integrated with **Moon Mining**.
 
 ## Highlights
@@ -119,7 +119,7 @@ CELERYBEAT_SCHEDULE['moonmining_run_value_updates'] = {
 }
 ```
 
-> [!HINT]
+> [!TIP]
 > The value updates are supposed to run once a day during off hours.
 > Feel free to adjust the timing according to your timezone.
 
@@ -160,7 +160,7 @@ python manage.py moonmining_calculate_all
 
 Please wait until the loading is complete before continuing.
 
-> [!HINT]
+> [!TIP]
 > You can monitor the loading progress on the dashboard.
 > As long as the Task Queue shows more than 0 tasks the process is most likely still ongoing.
 
@@ -263,7 +263,7 @@ Name | Description
 `moonmining_load_eve` | Pre-loads data required for this app from ESI to improve app performance.
 `moonstuff_export_moons` | Export all moons from aa-moonstuff v1 to a CSV file, which can later be used to import the moons into the Moon Mining app with the `moonmining_import_moons` command.
 
-> [!HINT]
+> [!TIP]
 > Run any command with `-h` to see all options.
 
 ### CSV Format
