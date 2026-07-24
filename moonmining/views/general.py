@@ -3,7 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpRequest
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as __
 from django.views.decorators.cache import cache_page
 from esi.decorators import token_required
@@ -36,10 +36,18 @@ def index(request: HttpRequest):
 @login_required
 def add_owner(request: HttpRequest, token: Token):
     """Render view to add an owner."""
-    character_ownership: CharacterOwnership = get_object_or_404(
-        request.user.character_ownerships.select_related("character"),
-        character__character_id=token.character_id,
-    )
+    try:
+        character_ownership = CharacterOwnership.objects.get(
+            character__character_id=token.character_id,
+        )
+    except CharacterOwnership.DoesNotExist:
+        messages.error(
+            request,
+            "Can not add a character that is not owned by the current user: "
+            f"{token.character_name}",
+        )
+        return redirect("moonmining:index")
+
     character = character_ownership.character
     if EveEntity.is_npc_id(character.corporation_id):
         messages.error(

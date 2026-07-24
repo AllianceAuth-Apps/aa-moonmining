@@ -2,7 +2,7 @@ from http import HTTPStatus
 from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse
 from django.test import RequestFactory
 from django.urls import reverse
 from esi.models import Token
@@ -96,7 +96,7 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
 
     @patch(MODULE_PATH + ".tasks.update_owner")
     @patch(MODULE_PATH + ".messages")
-    def test_should_raise_404_if_character_ownership_not_found(
+    def test_should_abort_when_character_ownership_not_found(
         self, mock_messages, mock_update_owner
     ):
         # given
@@ -110,8 +110,11 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
         orig_view = general.add_owner.__wrapped__.__wrapped__.__wrapped__
 
         # when
-        with self.assertRaises(Http404):
-            orig_view(request, token)
+        response = orig_view(request, token)
+
+        # then
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertTrue(mock_messages.error.called)
 
     @patch(MODULE_PATH + ".tasks.update_owner")
     @patch(MODULE_PATH + ".messages")
