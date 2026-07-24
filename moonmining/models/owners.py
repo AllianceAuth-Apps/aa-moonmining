@@ -23,7 +23,10 @@ from app_utils.allianceauth import notify_admins, notify_admins_throttled
 from app_utils.views import bootstrap_icon_plus_name_html
 
 from moonmining import __title__
-from moonmining.app_settings import MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES
+from moonmining.app_settings import (
+    MOONMINING_ADMIN_NOTIFICATIONS_ENABLED,
+    MOONMINING_OVERWRITE_SURVEYS_WITH_ESTIMATES,
+)
 from moonmining.constants import EveGroupId, EveTypeId, IconSize
 from moonmining.core import CalculatedExtraction, CalculatedExtractionProduct
 from moonmining.managers import MiningLedgerRecordManager
@@ -182,7 +185,8 @@ class Owner(models.Model):
                     f"Response from ESI: {exc}"
                 )
                 title = "Moon Mining: Owner disabled"
-                notify_admins(title=title, message=message)
+                if MOONMINING_ADMIN_NOTIFICATIONS_ENABLED:
+                    notify_admins(title=title, message=message, level="danger")
             raise exc
 
         for refinery_id in refinery_ids:

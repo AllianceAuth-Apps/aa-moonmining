@@ -424,7 +424,10 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
 
         # when
-        with patch(MODELS_PATH + ".owners.notify_admins") as notify:
+        with (
+            patch(MODELS_PATH + ".owners.MOONMINING_ADMIN_NOTIFICATIONS_ENABLED", True),
+            patch(MODELS_PATH + ".owners.notify_admins") as notify,
+        ):
             with self.assertRaises(HTTPError):
                 owner.update_refineries_from_esi()
 
