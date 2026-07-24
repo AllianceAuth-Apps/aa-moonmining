@@ -409,6 +409,30 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         structure_2.refresh_from_db()
         self.assertEqual(structure_2.name, structure_2_name)
 
+    @pook.on
+    def test_should_abort_when_sync_character_invalid(
+        self, mock_nearest_celestial: Mock
+    ):
+        # given
+        owner = OwnerFactory()
+        corporation_id = owner.corporation.corporation_id
+        pook.get(
+            make_esi_url(f"corporations/{corporation_id}/structures"),
+            reply=403,
+            response_json={"error": "Character is not in corporation"},
+        )
+
+        # when
+        with patch(MODELS_PATH + ".owners.notify_admins") as notify:
+            with self.assertRaises(HTTPError):
+                owner.update_refineries_from_esi()
+
+            # then
+            owner.refresh_from_db()
+            self.assertFalse(owner.is_enabled)
+            self.assertFalse(owner.last_update_ok)
+            self.assertTrue(notify.called)
+
 
 class TestOwner_UpdateExtractions(helpers.TestCaseWithClearCache):
     @pook.on
