@@ -1,4 +1,5 @@
 import datetime as dt
+from http import HTTPStatus
 from typing import NamedTuple
 from unittest.mock import Mock, patch
 
@@ -102,7 +103,7 @@ class TestOwner_FetchNotifications(helpers.TestCaseWithClearCache):
 
         pook.get(
             make_esi_url(f"characters/{character_id}/notifications"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_json=[
                 {
                     "notification_id": notification_id,
@@ -169,7 +170,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -189,7 +190,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
         pook.get(
             make_esi_url(f"universe/structures/{structure_id}"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_json={
                 "owner_id": corporation_id,
                 "name": structure_name,
@@ -222,7 +223,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         mock_nearest_celestial.side_effect = OSError
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -242,7 +243,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
         pook.get(
             make_esi_url(f"universe/structures/{structure_id}"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_json={
                 "owner_id": corporation_id,
                 "name": structure_name,
@@ -279,7 +280,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -299,7 +300,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
         pook.get(
             make_esi_url(f"universe/structures/{structure_id}"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_json={
                 "owner_id": corporation_id,
                 "name": structure_name,
@@ -352,7 +353,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         structure_2_name = "Auga - Paradise Alpha"
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -390,7 +391,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         )
         pook.get(
             make_esi_url(f"universe/structures/{structure_2.id}"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_json={
                 "owner_id": corporation_id,
                 "name": structure_2_name,
@@ -418,7 +419,7 @@ class TestOwner_UpdateRefineries(helpers.TestCaseWithClearCache):
         corporation_id = owner.corporation.corporation_id
         pook.get(
             make_esi_url(f"corporations/{corporation_id}/structures"),
-            reply=403,
+            reply=HTTPStatus.FORBIDDEN,
             response_json={"error": "Character is not in corporation"},
         )
 
@@ -458,7 +459,7 @@ class TestOwner_UpdateExtractions(helpers.TestCaseWithClearCache):
             make_esi_url(
                 f"corporation/{owner.corporation.corporation_id}/mining/extractions"
             ),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -531,7 +532,7 @@ class TestOwner_UpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
                     make_esi_url(
                         f"corporation/{owner.corporation.corporation_id}/mining/extractions"
                     ),
-                    reply=200,
+                    reply=HTTPStatus.OK,
                     response_headers={"X-Pages": "1"},
                     response_json=[
                         {
@@ -572,7 +573,7 @@ class TestOwner_UpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
             make_esi_url(
                 f"corporation/{owner.corporation.corporation_id}/mining/extractions"
             ),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[],
         )
@@ -602,7 +603,7 @@ class TestOwner_UpdateExtractionsFromEsi(helpers.TestCaseWithClearCache):
             make_esi_url(
                 f"corporation/{owner.corporation.corporation_id}/mining/extractions"
             ),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -680,7 +681,7 @@ class TestOwner_UpdateMiningLedger(helpers.TestCaseWithClearCache):
         observer_id = 1000000000001
         pook.get(
             make_esi_url(f"corporation/{corporation_id}/mining/observers"),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -712,7 +713,7 @@ class TestOwner_UpdateMiningLedger(helpers.TestCaseWithClearCache):
             make_esi_url(
                 f"corporation/{corporation_id}/mining/observers/{refinery.id}"
             ),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
@@ -766,7 +767,7 @@ class TestOwner_UpdateMiningLedger(helpers.TestCaseWithClearCache):
             make_esi_url(
                 f"corporation/{corporation_id}/mining/observers/{refinery.id}"
             ),
-            reply=200,
+            reply=HTTPStatus.OK,
             response_headers={"X-Pages": "1"},
             response_json=[
                 {
