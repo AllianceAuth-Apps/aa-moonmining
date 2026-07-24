@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
-from . import __version__
+from moonmining import __version__
 
 
 class MoonMiningConfig(AppConfig):

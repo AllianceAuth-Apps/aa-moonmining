@@ -11,7 +11,7 @@ from eveuniverse.tasks import update_unresolved_eve_entities
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
-from .models import EveOreType, Extraction, Moon, Owner, Refinery
+from moonmining.models import EveOreType, Extraction, Moon, Owner, Refinery
 
 logger = get_extension_logger(__name__)
 

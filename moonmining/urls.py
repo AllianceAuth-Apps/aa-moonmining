@@ -2,9 +2,7 @@
 
 from django.urls import path
 
-from moonmining.views import extractions, moons, reports
-
-from .views import general
+from moonmining.views import extractions, general, moons, reports
 
 app_name = "moonmining"
 

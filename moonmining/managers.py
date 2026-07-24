@@ -18,13 +18,13 @@ from eveuniverse.models import EveMoon
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
-from .app_settings import (
+from moonmining.app_settings import (
     MOONMINING_REPROCESSING_YIELD,
     MOONMINING_USE_REPROCESS_PRICING,
 )
-from .constants import EveCategoryId
-from .core import CalculatedExtraction
-from .helpers import eve_entity_get_or_create_esi_safe
+from moonmining.constants import EveCategoryId
+from moonmining.core import CalculatedExtraction
+from moonmining.helpers import eve_entity_get_or_create_esi_safe
 
 MAX_THREAD_WORKERS = 20
 BULK_BATCH_SIZE = 500
@@ -48,7 +48,7 @@ class EveOreTypeManger(EveTypeManager):
 
     def update_current_prices(self, use_process_pricing: Optional[bool] = None):
         """Update current prices for all ores."""
-        from .models import EveOreType, EveOreTypeExtras
+        from moonmining.models import EveOreType, EveOreTypeExtras
 
         if use_process_pricing is None:
             use_process_pricing = MOONMINING_USE_REPROCESS_PRICING
@@ -182,7 +182,7 @@ class MoonManagerBase(models.Manager):
     def _process_surveys(
         self, surveys: list, user: Optional[User]
     ) -> Tuple[List[SurveyProcessResult], bool]:
-        from .models import Moon
+        from moonmining.models import Moon
 
         overall_success = True
         process_results = []
@@ -217,7 +217,7 @@ class MoonManagerBase(models.Manager):
         return process_results, overall_success
 
     def _extract_moon_products(self, survey, moon):
-        from .models import EveOreType, MoonProduct
+        from moonmining.models import EveOreType, MoonProduct
 
         moon_products = []
         survey = survey[1:]
@@ -311,7 +311,7 @@ class ExtractionManagerBase(models.Manager):
 
         Return True when updated, else False.
         """
-        from .models import EveOreType, ExtractionProduct
+        from moonmining.models import EveOreType, ExtractionProduct
 
         try:
             extraction = self._find_matching_extraction(calculated)

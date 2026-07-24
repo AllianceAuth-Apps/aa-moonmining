@@ -1,6 +1,6 @@
 # flake8: noqa
 
-from .extractions import (
+from moonmining.models.extractions import (
     EveOreType,
     EveOreTypeExtras,
     Extraction,
@@ -8,7 +8,7 @@ from .extractions import (
     OreQualityClass,
     OreRarityClass,
 )
-from .general import General
-from .moons import Label, Moon, MoonProduct
-from .notifications import Notification, NotificationType
-from .owners import MiningLedgerRecord, Owner, Refinery
+from moonmining.models.general import General
+from moonmining.models.moons import Label, Moon, MoonProduct
+from moonmining.models.notifications import Notification, NotificationType
+from moonmining.models.owners import MiningLedgerRecord, Owner, Refinery

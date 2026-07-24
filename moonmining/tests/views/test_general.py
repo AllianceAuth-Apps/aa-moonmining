@@ -2,13 +2,17 @@ from http import HTTPStatus
 from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse
 from django.test import RequestFactory
 from django.urls import reverse
 from esi.models import Token
 
-from app_utils.testdata_factories import UserMainFactory
-from app_utils.testing import NoSocketsTestCase
+from app_utils.testdata_factories import (
+    EveCharacterFactory,
+    EveCorporationInfoFactory,
+    UserMainFactory,
+)
+from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
 from moonmining.models import Owner
 from moonmining.tests.testdata.factories import (
@@ -40,8 +44,7 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
         self, mock_messages, mock_update_owner, mock_notify_admins
     ):
         # given
-        token = Mock(spec=Token)
-        token.character_id = self.character.character_id
+        token = self.user.token_set.first()
         request = self.factory.get(reverse("moonmining:add_owner"))
         request.user = self.user
         request.token = token
@@ -56,6 +59,7 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.assertEqual(response.url, reverse("moonmining:index"))
         self.assertTrue(mock_messages.success.called)
+        self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_owner.delay.called)
         self.assertTrue(mock_notify_admins.called)
         obj = Owner.objects.get(
@@ -70,8 +74,7 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
         owner = OwnerFactory(user=self.user)
         owner.character_ownership = None
         owner.save()
-        token = Mock(spec=Token)
-        token.character_id = self.character.character_id
+        token = self.user.token_set.first()
         request = self.factory.get(reverse("moonmining:add_owner"))
         request.user = self.user
         request.token = token
@@ -86,13 +89,14 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.assertEqual(response.url, reverse("moonmining:index"))
         self.assertTrue(mock_messages.success.called)
+        self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_owner.delay.called)
         owner.refresh_from_db()
         self.assertEqual(owner.character_ownership, self.character.character_ownership)
 
     @patch(MODULE_PATH + ".tasks.update_owner")
     @patch(MODULE_PATH + ".messages")
-    def test_should_raise_404_if_character_ownership_not_found(
+    def test_should_abort_when_character_ownership_not_found(
         self, mock_messages, mock_update_owner
     ):
         # given
@@ -104,9 +108,40 @@ class TestUserWithAddOwnerPermission(NoSocketsTestCase):
         middleware = SessionMiddleware(Mock())
         middleware.process_request(request)
         orig_view = general.add_owner.__wrapped__.__wrapped__.__wrapped__
+
         # when
-        with self.assertRaises(Http404):
-            orig_view(request, token)
+        response = orig_view(request, token)
+
+        # then
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertTrue(mock_messages.error.called)
+
+    @patch(MODULE_PATH + ".tasks.update_owner")
+    @patch(MODULE_PATH + ".messages")
+    def test_should_abort_when_character_in_npc_corp(
+        self, mock_messages, mock_update_owner
+    ):
+        # given
+        user = UserMainFactory()
+        npc_corporation = EveCorporationInfoFactory(
+            corporation_id=1000115, corporation_name="University of Caille"
+        )
+        character = EveCharacterFactory(corporation=npc_corporation)
+        add_character_to_user(user, character)
+        token = user.token_set.get(character_id=character.character_id)
+        request = self.factory.get(reverse("moonmining:add_owner"))
+        request.user = user
+        request.token = token
+        middleware = SessionMiddleware(Mock())
+        middleware.process_request(request)
+        orig_view = general.add_owner.__wrapped__.__wrapped__.__wrapped__
+
+        # when
+        response = orig_view(request, token)
+
+        # then
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertTrue(mock_messages.error.called)
 
 
 class TestViewsAreWorking(NoSocketsTestCase):
