@@ -22,7 +22,9 @@ class TestImportMoons(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.import_file = Path(__file__).parent / "testdata" / "moons_for_import.csv"
+        cls.import_file = (
+            Path(__file__).parent.parent / "testdata" / "moons_for_import.csv"
+        )
         EveMoonFactory(id=40161708)
         EveMoonFactory(id=40161709)
         MoonAsteroidsTypeFactory(id=45506)
