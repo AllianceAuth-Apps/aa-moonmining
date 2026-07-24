@@ -8,7 +8,9 @@ from django.utils.translation import gettext_lazy as __
 from django.views.decorators.cache import cache_page
 from esi.decorators import token_required
 from esi.models import Token
+from eveuniverse.models import EveEntity
 
+from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCorporationInfo
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.allianceauth import notify_admins
@@ -34,17 +36,25 @@ def index(request: HttpRequest):
 @login_required
 def add_owner(request: HttpRequest, token: Token):
     """Render view to add an owner."""
-    character_ownership = get_object_or_404(
+    character_ownership: CharacterOwnership = get_object_or_404(
         request.user.character_ownerships.select_related("character"),
         character__character_id=token.character_id,
     )
+    character = character_ownership.character
+    if EveEntity.is_npc_id(character.corporation_id):
+        messages.error(
+            request,
+            f"Can not add NPC corporation: {character.corporation.corporation_name}",
+        )
+        return redirect("moonmining:index")
+
     try:
         corporation = EveCorporationInfo.objects.get(
-            corporation_id=character_ownership.character.corporation_id
+            corporation_id=character.corporation_id
         )
     except EveCorporationInfo.DoesNotExist:
         corporation = EveCorporationInfo.objects.create_corporation(
-            character_ownership.character.corporation_id
+            character.corporation_id
         )
         corporation.save()
 
