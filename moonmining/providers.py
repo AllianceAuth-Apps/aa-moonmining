@@ -4,7 +4,7 @@ from pathlib import Path
 
 from esi.openapi_clients import ESIClientProvider
 
-from . import __version__
+from moonmining import __version__
 
 spec_file = Path(__file__).parent / "openapi_2025-12-16.json"
 esi = ESIClientProvider(

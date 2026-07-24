@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import IntEnum, auto
 from typing import List, Optional
 
-from . import helpers
+from moonmining import helpers
 
 
 # pylint: disable = too-many-instance-attributes

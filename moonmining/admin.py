@@ -6,8 +6,8 @@ from django.contrib import admin
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 
-from . import tasks
-from .models import (
+from moonmining import tasks
+from moonmining.models import (
     EveOreType,
     EveOreTypeExtras,
     Extraction,

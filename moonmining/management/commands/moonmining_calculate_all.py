@@ -3,9 +3,8 @@ import logging
 from django.core.management.base import BaseCommand
 
 from moonmining import tasks
+from moonmining.management.commands import get_input
 from moonmining.models import Extraction, Moon
-
-from . import get_input
 
 logger = logging.getLogger(__name__)
 
