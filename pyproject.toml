@@ -26,15 +26,15 @@ classifiers = [
 dependencies = [
     "allianceauth-app-utils>=1.33.2",
     "allianceauth>=4,<6",
-    "django-esi>=8,<10",
+    "django-esi>=8,<11",
     "django-bootstrap-form",
     "django-datatables-view>=1.20",
-    "django-eveuniverse>=2",
+    "django-eveuniverse>=2.2",
     "django-navhelper",
     "PyYAML",
 ]
 [project.optional-dependencies]
-test = ["coverage", "factory_boy", "pook"]
+test = ["coverage", "factory_boy", "pookx"]
 
 [project.urls]
 Homepage = "https://github.com/AllianceAuth-Apps/aa-moonmining"
